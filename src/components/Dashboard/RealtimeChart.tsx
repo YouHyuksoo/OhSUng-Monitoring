@@ -202,7 +202,7 @@ export function RealtimeChart({
    * - 정상 상태: 기본 테두리
    */
   const borderClass = isAlarm
-    ? "border-4 border-red-500 animate-pulse-border"
+    ? "border-2 border-red-500 animate-pulse-border"
     : bordered
     ? "border border-border"
     : "";
