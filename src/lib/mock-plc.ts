@@ -43,9 +43,15 @@ export class MockPLC implements PLCConnector {
       if (this.memory.has(addr)) {
         let val = this.memory.get(addr) || 0;
         // Add random noise to simulate sensor reading
-        if (addr.startsWith("D400") && !addr.endsWith("1")) { // Temp current values
-             val += (Math.random() - 0.5);
-             val = Math.round(val * 10) / 10;
+        const addrNum = parseInt(addr.substring(1));
+        // Temp current values (D400, D410, ... D470) - Ends with 0
+        if (addrNum >= 400 && addrNum <= 470 && addrNum % 10 === 0) {
+          val += Math.random() - 0.5;
+          val = Math.round(val * 10) / 10;
+        } else if (addr === "D4032") {
+          // Power Energy
+          val += (Math.random() - 0.5) * 10;
+          val = Math.round(val);
         }
         result[addr] = val;
         this.memory.set(addr, val);

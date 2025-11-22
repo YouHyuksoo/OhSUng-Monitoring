@@ -23,9 +23,7 @@ export default function RootLayout({
           <SettingsProvider>
             <PLCConnectionProvider>
               <Header />
-              <main className="w-full py-6">
-                {children}
-              </main>
+              <main className="w-full">{children}</main>
             </PLCConnectionProvider>
           </SettingsProvider>
         </ThemeProvider>

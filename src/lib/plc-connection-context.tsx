@@ -14,14 +14,27 @@
 
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { useSettings } from "./settings-context";
+import { logger } from "@/lib/logger";
+
+/**
+ * 연결 상태 타입
+ */
+export type ConnectionState = "connecting" | "connected" | "disconnected";
 
 /**
  * PLC 연결 상태 인터페이스
  */
 export interface PLCConnectionStatus {
-  isConnected: boolean;
+  state: ConnectionState;
   error?: string;
   lastChecked?: Date;
 }
@@ -31,11 +44,13 @@ export interface PLCConnectionStatus {
  */
 type PLCConnectionContextType = {
   connectionStatus: PLCConnectionStatus;
+  requestConnectionCheck: (reason: string) => void;
+  reportSuccess: () => void;
 };
 
-const PLCConnectionContext = createContext<PLCConnectionContextType | undefined>(
-  undefined
-);
+const PLCConnectionContext = createContext<
+  PLCConnectionContextType | undefined
+>(undefined);
 
 /**
  * PLC 연결 상태 Provider 컴포넌트
@@ -46,45 +61,44 @@ export function PLCConnectionProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [connectionStatus, setConnectionStatus] = useState<PLCConnectionStatus>({
-    isConnected: true,  // 초기: 페이지 로드 시간을 위해 true로 설정
-  });
-  const { settings } = useSettings();
+  const [connectionStatus, setConnectionStatus] = useState<PLCConnectionStatus>(
+    {
+      state: "disconnected", // 초기: 연결 대기 중 (폴링 안 함)
+      error: "PLC 연결 중...",
+    }
+  );
+  const { settings, isDemoMode } = useSettings();
+
+  // 재시도 타이머 ref
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // 컴포넌트 마운트 상태 ref
+  const isMountedRef = useRef(true);
 
   /**
-   * PLC 연결 상태 체크 및 폴링
-   *
-   * 플로우:
-   * 1️⃣ 페이지 먼저 렌더링 (경고창 숨김)
-   * 2️⃣ 설정이 유효한지 확인 (plcIp, chartConfigs 존재)
-   * 3️⃣ 즉시 연결 시도
-   * 4️⃣ 실패 시 알림 표시 + 2초마다 지속적 재시도
-   * 5️⃣ 성공 시 데이터 폴링 계속
-   * 6️⃣ 연결 중단 감지 시 즉시 알림 + 재시도
+   * PLC 연결 상태 체크 함수
+   * - 성공 시: connected 상태로 변경
+   * - 실패 시: disconnected 상태로 변경하고 재시도 예약
    */
-  useEffect(() => {
-    // 설정 검증
-    if (!settings.plcIp || !settings.plcPort || !settings.chartConfigs?.length) {
-      // 설정이 불완전하면 경고 표시
-      setConnectionStatus({
-        isConnected: false,
-        error: "설정이 불완전합니다. 설정 페이지를 확인하세요.",
-      });
-      return;
-    }
+  const checkConnection = useCallback(async () => {
+    if (!isMountedRef.current) return;
 
-    let isComponentMounted = true;
-    let retryTimer: NodeJS.Timeout | null = null;
+    try {
+      // IP/Port 재검증 (데모 모드일 때는 패스)
+      if (!isDemoMode && (!settings.plcIp || !settings.plcPort)) {
+        throw new Error("PLC IP 또는 Port가 설정되지 않음");
+      }
 
-    const checkConnection = async () => {
-      if (!isComponentMounted) return;
+      // 연결 확인 전용 엔드포인트 호출
+      let url = `/api/plc?check=true&ip=${settings.plcIp}&port=${settings.plcPort}`;
+      if (isDemoMode) {
+        url += "&demo=true";
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5초 타임아웃
 
       try {
-        // 첫 번째 차트 주소로 테스트
-        const testAddress = settings.chartConfigs![0]?.address || "D400";
-        const url = `/api/plc?addresses=${testAddress}&ip=${settings.plcIp}&port=${settings.plcPort}`;
-
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: controller.signal });
 
         if (!res.ok) {
           const errorData = await res.json();
@@ -93,54 +107,133 @@ export function PLCConnectionProvider({
 
         const json = await res.json();
 
-        // 데이터 검증
-        if (!json || typeof json[testAddress] !== "number") {
-          throw new Error("Invalid response from PLC");
+        // 연결 확인 응답 검증
+        if (!json.connected) {
+          throw new Error("PLC reported disconnected");
         }
 
         // ✅ 연결 성공
-        if (isComponentMounted) {
-          setConnectionStatus({
-            isConnected: true,
-            lastChecked: new Date(),
+        if (isMountedRef.current) {
+          setConnectionStatus((prev) => {
+            // 이미 연결된 상태라면 업데이트 하지 않음 (불필요한 렌더링 방지)
+            if (prev.state === "connected") return prev;
+
+            logger.success("PLC 연결 성공", "PLCConnectionContext");
+            return {
+              state: "connected",
+              lastChecked: new Date(),
+              error: undefined,
+            };
           });
-          console.log("✅ PLC 연결 성공");
         }
-      } catch (error) {
-        // ❌ 연결 실패
-        if (isComponentMounted) {
-          const errorMsg =
-            error instanceof Error ? error.message : "PLC 연결 실패";
-
-          console.error("❌ PLC 연결 실패:", errorMsg);
-
-          setConnectionStatus({
-            isConnected: false,
-            error: errorMsg,
-            lastChecked: new Date(),
-          });
-
-          // 2초 후 재시도 (자동으로 반복)
-          if (retryTimer) clearTimeout(retryTimer);
-          retryTimer = setTimeout(() => {
-            checkConnection();
-          }, 2000);
-        }
+      } finally {
+        clearTimeout(timeoutId);
       }
-    };
+    } catch (error) {
+      // ❌ 연결 실패
+      if (isMountedRef.current) {
+        const errorMsg =
+          error instanceof Error ? error.message : "PLC 연결 실패";
+
+        logger.error("PLC 연결 실패", "PLCConnectionContext", errorMsg);
+
+        setConnectionStatus({
+          state: "disconnected",
+          error: errorMsg,
+          lastChecked: new Date(),
+        });
+
+        // 2초 후 재시도 (기존 타이머 제거 후 설정)
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(() => {
+          checkConnection();
+        }, 5000);
+      }
+    }
+  }, [settings.plcIp, settings.plcPort, settings.chartConfigs, isDemoMode]);
+
+  /**
+   * 외부(컴포넌트)에서 에러 보고 시 호출
+   * - 즉시 연결 끊김 처리 및 재연결 시도 시작
+   */
+  /**
+   * 외부(컴포넌트)에서 연결 확인 요청 시 호출
+   * - 폴링 실패 시 호출됨
+   * - 즉시 연결 끊김으로 처리하지 않고, Context가 직접 연결 상태를 확인하도록 요청
+   */
+  const requestConnectionCheck = useCallback(
+    (reason: string) => {
+      if (!isMountedRef.current) return;
+
+      logger.warning(`연결 확인 요청: ${reason}`, "PLCConnectionContext");
+
+      // 이미 끊긴 상태면 무시 (재시도 로직이 이미 돌고 있음)
+      if (connectionStatus.state === "disconnected") return;
+
+      // 즉시 재연결 시도 시작 (디바운싱 적용)
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = setTimeout(() => {
+        checkConnection();
+      }, 1000); // 1초 디바운스
+    },
+    [connectionStatus.state, checkConnection]
+  );
+
+  /**
+   * 외부(컴포넌트)에서 성공 보고 시 호출
+   * - 연결 상태 갱신 (disconnected -> connected)
+   */
+  const reportSuccess = useCallback(() => {
+    if (!isMountedRef.current) return;
+
+    setConnectionStatus((prev) => {
+      if (prev.state === "connected") return prev;
+
+      logger.success("PLC 재연결 성공", "PLCConnectionContext");
+      return {
+        state: "connected",
+        lastChecked: new Date(),
+        error: undefined,
+      };
+    });
+  }, []);
+
+  // 초기 진입 및 설정 변경 시 연결 시도
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    // 설정 검증
+    if (
+      !settings.plcIp ||
+      !settings.plcPort ||
+      !settings.chartConfigs?.length
+    ) {
+      setConnectionStatus({
+        state: "disconnected",
+        error: "설정이 불완전합니다. 설정 페이지를 확인하세요.",
+      });
+      return;
+    }
 
     // 🚀 즉시 연결 시도
     checkConnection();
 
     // 정리 함수
     return () => {
-      isComponentMounted = false;
-      if (retryTimer) clearTimeout(retryTimer);
+      isMountedRef.current = false;
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
-  }, [settings.plcIp, settings.plcPort, settings.chartConfigs]);
+  }, [
+    checkConnection,
+    settings.plcIp,
+    settings.plcPort,
+    JSON.stringify(settings.chartConfigs),
+  ]);
 
   return (
-    <PLCConnectionContext.Provider value={{ connectionStatus }}>
+    <PLCConnectionContext.Provider
+      value={{ connectionStatus, requestConnectionCheck, reportSuccess }}
+    >
       {children}
     </PLCConnectionContext.Provider>
   );

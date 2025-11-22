@@ -9,11 +9,17 @@
 
 import { useEffect, useState } from "react";
 import { useSettings, ChartConfig } from "@/lib/settings-context";
+import { Toast, ToastType } from "@/components/ui/toast";
 
 export default function SettingsPage() {
   const { settings, updateSettings } = useSettings();
   const [localSettings, setLocalSettings] = useState(settings);
   const [isModified, setIsModified] = useState(false);
+  const [toast, setToast] = useState<{
+    type: ToastType;
+    title: string;
+    message?: string;
+  } | null>(null);
 
   // Sync local state with global settings when they change (e.g. on initial load)
   useEffect(() => {
@@ -21,18 +27,22 @@ export default function SettingsPage() {
   }, [settings]);
 
   const handleChange = (key: keyof typeof settings, value: any) => {
-    setLocalSettings(prev => {
+    setLocalSettings((prev) => {
       const next = { ...prev, [key]: value };
       setIsModified(true);
       return next;
     });
   };
 
-  const handleChartConfigChange = (index: number, field: keyof ChartConfig, value: string) => {
-    setLocalSettings(prev => {
+  const handleChartConfigChange = (
+    index: number,
+    field: keyof ChartConfig,
+    value: string
+  ) => {
+    setLocalSettings((prev) => {
       const newConfigs = [...prev.chartConfigs];
       const updated = { ...newConfigs[index] };
-      if (field === 'name' || field === 'address' || field === 'setAddress') {
+      if (field === "name" || field === "address" || field === "setAddress") {
         updated[field] = value;
       }
       newConfigs[index] = updated;
@@ -51,7 +61,39 @@ export default function SettingsPage() {
   const handleSave = () => {
     updateSettings(localSettings);
     setIsModified(false);
-    alert("설정이 저장되었습니다.");
+    setToast({
+      type: "success",
+      title: "설정 저장 완료",
+      message: "설정이 성공적으로 저장되었습니다.",
+    });
+  };
+  const handleTestConnection = async () => {
+    try {
+      const res = await fetch(
+        `/api/plc?check=true&ip=${localSettings.plcIp}&port=${localSettings.plcPort}`
+      );
+      const data = await res.json();
+      if (data.connected) {
+        setToast({
+          type: "success",
+          title: "PLC 연결 성공",
+          message: "PLC와 정상적으로 연결되었습니다.",
+        });
+      } else {
+        setToast({
+          type: "error",
+          title: "PLC 연결 실패",
+          message: data.error || "연결할 수 없습니다.",
+        });
+      }
+    } catch (error) {
+      setToast({
+        type: "error",
+        title: "연결 테스트 오류",
+        message: "PLC 연결 테스트 중 오류가 발생했습니다.",
+      });
+      console.error(error);
+    }
   };
 
   return (
@@ -62,8 +104,8 @@ export default function SettingsPage() {
           onClick={handleSave}
           disabled={!isModified}
           className={`px-4 py-2 rounded-md text-white transition-colors ${
-            isModified 
-              ? "bg-blue-600 hover:bg-blue-700" 
+            isModified
+              ? "bg-blue-600 hover:bg-blue-700"
               : "bg-gray-400 cursor-not-allowed"
           }`}
         >
@@ -90,18 +132,31 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label htmlFor="port" className="text-sm font-medium block mb-1.5">
+              <label
+                htmlFor="port"
+                className="text-sm font-medium block mb-1.5"
+              >
                 포트
               </label>
               <input
                 type="number"
                 id="port"
                 value={localSettings.plcPort}
-                onChange={(e) => handleChange("plcPort", parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleChange("plcPort", parseInt(e.target.value))
+                }
                 placeholder="502"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
+          </div>
+          <div className="pt-2">
+            <button
+              onClick={handleTestConnection}
+              className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md transition-colors text-sm font-medium"
+            >
+              PLC 연결 테스트
+            </button>
           </div>
         </div>
 
@@ -110,14 +165,19 @@ export default function SettingsPage() {
           <h2 className="text-lg font-semibold mb-4">모니터링 설정</h2>
           <div className="space-y-4">
             <div>
-              <label htmlFor="polling" className="text-sm font-medium block mb-1.5">
+              <label
+                htmlFor="polling"
+                className="text-sm font-medium block mb-1.5"
+              >
                 폴링 주기 (밀리초)
               </label>
               <input
                 type="number"
                 id="polling"
                 value={localSettings.pollingInterval}
-                onChange={(e) => handleChange("pollingInterval", parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleChange("pollingInterval", parseInt(e.target.value))
+                }
                 placeholder="2000"
                 min="500"
                 step="500"
@@ -128,14 +188,19 @@ export default function SettingsPage() {
               </p>
             </div>
             <div>
-              <label htmlFor="retention" className="text-sm font-medium block mb-1.5">
+              <label
+                htmlFor="retention"
+                className="text-sm font-medium block mb-1.5"
+              >
                 차트 데이터 포인트 수
               </label>
               <input
                 type="number"
                 id="retention"
                 value={localSettings.dataRetention}
-                onChange={(e) => handleChange("dataRetention", parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleChange("dataRetention", parseInt(e.target.value))
+                }
                 placeholder="20"
                 min="10"
                 max="100"
@@ -153,26 +218,36 @@ export default function SettingsPage() {
           <h2 className="text-lg font-semibold mb-4">수절 건조로 알람 설정</h2>
           <div className="space-y-4">
             <div>
-              <label htmlFor="sujul-min" className="text-sm font-medium block mb-1.5">
+              <label
+                htmlFor="sujul-min"
+                className="text-sm font-medium block mb-1.5"
+              >
                 최소 온도 (°C)
               </label>
               <input
                 type="number"
                 id="sujul-min"
                 value={localSettings.sujulTempMin}
-                onChange={(e) => handleChange("sujulTempMin", parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleChange("sujulTempMin", parseInt(e.target.value))
+                }
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
             <div>
-              <label htmlFor="sujul-max" className="text-sm font-medium block mb-1.5">
+              <label
+                htmlFor="sujul-max"
+                className="text-sm font-medium block mb-1.5"
+              >
                 최대 온도 (°C)
               </label>
               <input
                 type="number"
                 id="sujul-max"
                 value={localSettings.sujulTempMax}
-                onChange={(e) => handleChange("sujulTempMax", parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleChange("sujulTempMax", parseInt(e.target.value))
+                }
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
@@ -189,26 +264,36 @@ export default function SettingsPage() {
           <h2 className="text-lg font-semibold mb-4">열풍 건조로 알람 설정</h2>
           <div className="space-y-4">
             <div>
-              <label htmlFor="yeolpung-min" className="text-sm font-medium block mb-1.5">
+              <label
+                htmlFor="yeolpung-min"
+                className="text-sm font-medium block mb-1.5"
+              >
                 최소 온도 (°C)
               </label>
               <input
                 type="number"
                 id="yeolpung-min"
                 value={localSettings.yeolpungTempMin}
-                onChange={(e) => handleChange("yeolpungTempMin", parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleChange("yeolpungTempMin", parseInt(e.target.value))
+                }
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
             <div>
-              <label htmlFor="yeolpung-max" className="text-sm font-medium block mb-1.5">
+              <label
+                htmlFor="yeolpung-max"
+                className="text-sm font-medium block mb-1.5"
+              >
                 최대 온도 (°C)
               </label>
               <input
                 type="number"
                 id="yeolpung-max"
                 value={localSettings.yeolpungTempMax}
-                onChange={(e) => handleChange("yeolpungTempMax", parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleChange("yeolpungTempMax", parseInt(e.target.value))
+                }
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
@@ -239,14 +324,19 @@ export default function SettingsPage() {
               </p>
             </div>
             <div>
-              <label htmlFor="log-retention" className="text-sm font-medium block mb-1.5">
+              <label
+                htmlFor="log-retention"
+                className="text-sm font-medium block mb-1.5"
+              >
                 로그 보관 기간 (일)
               </label>
               <input
                 type="number"
                 id="log-retention"
                 value={localSettings.logRetention}
-                onChange={(e) => handleChange("logRetention", parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleChange("logRetention", parseInt(e.target.value))
+                }
                 min="1"
                 max="365"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -255,6 +345,25 @@ export default function SettingsPage() {
                 이전 데이터는 자동으로 삭제됩니다.
               </p>
             </div>
+          </div>
+          <div className="md:col-span-2">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={localSettings.startFullScreen}
+                onChange={(e) =>
+                  handleChange("startFullScreen", e.target.checked)
+                }
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium">
+                모니터링 시작 시 전체 화면으로 전환
+              </span>
+            </label>
+            <p className="text-xs text-muted-foreground mt-1 ml-6">
+              모니터링 페이지에 진입할 때 자동으로 전체 화면 모드를 시도합니다.
+              (브라우저 정책에 따라 차단될 수 있음)
+            </p>
           </div>
         </div>
 
@@ -295,7 +404,11 @@ export default function SettingsPage() {
                             type="text"
                             value={config.name}
                             onChange={(e) =>
-                              handleChartConfigChange(actualIndex, "name", e.target.value)
+                              handleChartConfigChange(
+                                actualIndex,
+                                "name",
+                                e.target.value
+                              )
                             }
                             placeholder="차트 이름"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -309,7 +422,11 @@ export default function SettingsPage() {
                             type="text"
                             value={config.address}
                             onChange={(e) =>
-                              handleChartConfigChange(actualIndex, "address", e.target.value)
+                              handleChartConfigChange(
+                                actualIndex,
+                                "address",
+                                e.target.value
+                              )
                             }
                             placeholder="예: D4032"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -350,7 +467,11 @@ export default function SettingsPage() {
                             type="text"
                             value={config.name}
                             onChange={(e) =>
-                              handleChartConfigChange(actualIndex, "name", e.target.value)
+                              handleChartConfigChange(
+                                actualIndex,
+                                "name",
+                                e.target.value
+                              )
                             }
                             placeholder="예: 수절 1"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -364,7 +485,11 @@ export default function SettingsPage() {
                             type="text"
                             value={config.address}
                             onChange={(e) =>
-                              handleChartConfigChange(actualIndex, "address", e.target.value)
+                              handleChartConfigChange(
+                                actualIndex,
+                                "address",
+                                e.target.value
+                              )
                             }
                             placeholder="예: D400"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -389,7 +514,9 @@ export default function SettingsPage() {
                           />
                         </div>
                         <div className="text-xs text-muted-foreground flex items-center">
-                          <span>임계값: {SUJUL_TEMP_MIN}~{SUJUL_TEMP_MAX}°C</span>
+                          <span>
+                            임계값: {SUJUL_TEMP_MIN}~{SUJUL_TEMP_MAX}°C
+                          </span>
                         </div>
                       </div>
                     );
@@ -423,7 +550,11 @@ export default function SettingsPage() {
                             type="text"
                             value={config.name}
                             onChange={(e) =>
-                              handleChartConfigChange(actualIndex, "name", e.target.value)
+                              handleChartConfigChange(
+                                actualIndex,
+                                "name",
+                                e.target.value
+                              )
                             }
                             placeholder="예: 열풍 1"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -437,7 +568,11 @@ export default function SettingsPage() {
                             type="text"
                             value={config.address}
                             onChange={(e) =>
-                              handleChartConfigChange(actualIndex, "address", e.target.value)
+                              handleChartConfigChange(
+                                actualIndex,
+                                "address",
+                                e.target.value
+                              )
                             }
                             placeholder="예: D430"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -462,7 +597,9 @@ export default function SettingsPage() {
                           />
                         </div>
                         <div className="text-xs text-muted-foreground flex items-center">
-                          <span>임계값: {YEOLPUNG_TEMP_MIN}~{YEOLPUNG_TEMP_MAX}°C</span>
+                          <span>
+                            임계값: {YEOLPUNG_TEMP_MIN}~{YEOLPUNG_TEMP_MAX}°C
+                          </span>
                         </div>
                       </div>
                     );
@@ -483,7 +620,8 @@ export default function SettingsPage() {
                   <strong>설정값 주소</strong>: PLC에 목표 설정값이 저장된 주소
                 </li>
                 <li>
-                  주소 형식: <code className="bg-blue-100 px-1 rounded">D400</code>,{" "}
+                  주소 형식:{" "}
+                  <code className="bg-blue-100 px-1 rounded">D400</code>,{" "}
                   <code className="bg-blue-100 px-1 rounded">D401</code> 등
                 </li>
                 <li>변경 후 반드시 &quot;설정 저장&quot; 버튼을 클릭하세요</li>
@@ -492,6 +630,16 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Toast 메시지 */}
+      {toast && (
+        <Toast
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

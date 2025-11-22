@@ -42,9 +42,17 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([promise, timeoutPromise]);
 }
 
-function getPlc(ip?: string | null, port?: string | null): PLCConnector {
-  if (!ip || !port) {
+function getPlc(
+  ip?: string | null,
+  port?: string | null,
+  demo?: boolean
+): PLCConnector {
+  if (demo) {
     return mockPlc;
+  }
+
+  if (!ip || !port) {
+    throw new Error("PLC IP와 Port가 필수입니다");
   }
 
   const key = `${ip}:${port}`;
@@ -71,15 +79,42 @@ export async function GET(request: Request) {
   const addresses = searchParams.get("addresses")?.split(",") || [];
   const ip = searchParams.get("ip");
   const port = searchParams.get("port");
+  const check = searchParams.get("check") === "true";
+  const demo = searchParams.get("demo") === "true";
+
+  // 연결 확인 모드
+  if (check) {
+    if (!demo && (!ip || !port)) {
+      return NextResponse.json(
+        { error: "IP and Port required for check" },
+        { status: 400 }
+      );
+    }
+    try {
+      const plc = getPlc(ip, port, demo);
+      // 연결 시도 (이미 연결되어 있으면 즉시 리턴됨)
+      await withTimeout(plc.connect(), 5000);
+      return NextResponse.json({ connected: true });
+    } catch (error) {
+      console.error("PLC Connection Check Failed:", error);
+      return NextResponse.json(
+        { connected: false, error: "Connection Failed" },
+        { status: 500 }
+      );
+    }
+  }
 
   if (addresses.length === 0) {
-    return NextResponse.json({ error: "No addresses provided" }, { status: 400 });
+    return NextResponse.json(
+      { error: "No addresses provided" },
+      { status: 400 }
+    );
   }
 
   try {
-    const plc = getPlc(ip, port);
-    const key = `${ip}:${port}`;
-    const cached = connections.get(key);
+    const plc = getPlc(ip, port, demo);
+    const key = demo ? "mock" : `${ip}:${port}`;
+    const cached = demo ? undefined : connections.get(key);
 
     if (cached) {
       cached.isReading = true;
@@ -96,7 +131,8 @@ export async function GET(request: Request) {
     }
   } catch (error) {
     console.error("PLC Read Error:", error);
-    const message = error instanceof Error ? error.message : "Failed to read PLC";
+    const message =
+      error instanceof Error ? error.message : "Failed to read PLC";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -110,7 +146,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const plc = getPlc(ip, port);
+    const plc = getPlc(ip, port, false);
     const key = `${ip}:${port}`;
     const cached = connections.get(key);
 
@@ -129,7 +165,8 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     console.error("PLC Write Error:", error);
-    const message = error instanceof Error ? error.message : "Failed to write PLC";
+    const message =
+      error instanceof Error ? error.message : "Failed to write PLC";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

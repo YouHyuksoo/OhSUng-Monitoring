@@ -3,7 +3,7 @@
  * @description
  * 실시간 차트 컴포넌트
  * PLC 데이터를 폴링하여 실시간으로 차트에 표시합니다.
- * 
+ *
  * 주요 기능:
  * - 2초마다 PLC 데이터 폴링 (pollingInterval prop으로 설정 가능)
  * - 최근 20개 데이터 포인트 유지
@@ -26,6 +26,8 @@ import {
 } from "recharts";
 import { useTheme } from "@/components/theme-provider";
 import { usePLCConnection } from "@/lib/plc-connection-context";
+import { useSettings } from "@/lib/settings-context";
+import { logger } from "@/lib/logger";
 
 interface DataPoint {
   time: string;
@@ -42,8 +44,8 @@ interface RealtimeChartProps {
   minThreshold?: number;
   maxThreshold?: number;
   bordered?: boolean;
-  yMin?: number | 'auto';
-  yMax?: number | 'auto';
+  yMin?: number | "auto";
+  yMax?: number | "auto";
   pollingInterval?: number;
   plcIp?: string;
   plcPort?: number;
@@ -66,39 +68,43 @@ export function RealtimeChart({
   minThreshold,
   maxThreshold,
   bordered = false,
-  yMin = 'auto',
-  yMax = 'auto',
+  yMin = "auto",
+  yMax = "auto",
   pollingInterval = 2000,
   plcIp,
-  plcPort
+  plcPort,
 }: RealtimeChartProps) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [isAlarm, setIsAlarm] = useState(false);
   const { theme } = useTheme();
-  const { connectionStatus } = usePLCConnection();
+  const { connectionStatus, requestConnectionCheck } = usePLCConnection();
+  const { isDemoMode } = useSettings();
 
   /**
    * PLC 연결 상태 변화 감지
    * - 연결 실패 시 데이터 초기화
    */
   useEffect(() => {
-    if (!connectionStatus.isConnected) {
+    if (connectionStatus.state !== "connected") {
       setData([]);
       setIsAlarm(false);
     }
-  }, [connectionStatus.isConnected]);
+  }, [connectionStatus.state]);
 
   /**
    * PLC 데이터 폴링 함수
-   * - 주기적으로 PLC에서 데이터 읽기
-   * - 에러는 콘솔에만 로깅 (전역 상태에서 처리)
-   * - 연결 실패 시 폴링 중단
+   * - 재귀적 setTimeout 사용 (이전 요청 완료 후 다음 요청 예약)
+   * - AbortController 사용 (컴포넌트 언마운트/연결 끊김 시 즉시 취소)
    */
   useEffect(() => {
-    // 연결 실패 시 폴링 중단
-    if (!connectionStatus.isConnected) {
+    // 연결되지 않은 상태면 폴링하지 않음
+    if (connectionStatus.state !== "connected") {
       return;
     }
+
+    let timeoutId: NodeJS.Timeout;
+    const controller = new AbortController();
+
     const fetchData = async () => {
       try {
         const addresses = setAddress ? `${address},${setAddress}` : address;
@@ -106,8 +112,11 @@ export function RealtimeChart({
         if (plcIp && plcPort) {
           url += `&ip=${plcIp}&port=${plcPort}`;
         }
+        if (isDemoMode) {
+          url += "&demo=true";
+        }
 
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: controller.signal });
 
         if (!res.ok) {
           const errorData = await res.json();
@@ -117,7 +126,7 @@ export function RealtimeChart({
         const json = await res.json();
 
         // 필수 데이터 검증
-        if (!json || typeof json[address] !== 'number') {
+        if (!json || typeof json[address] !== "number") {
           throw new Error(`Invalid data received for address ${address}`);
         }
 
@@ -126,27 +135,63 @@ export function RealtimeChart({
 
         // 알람 체크 (측정값 기준)
         if (minThreshold !== undefined && maxThreshold !== undefined) {
-          setIsAlarm(currentValue < minThreshold || currentValue > maxThreshold);
+          setIsAlarm(
+            currentValue < minThreshold || currentValue > maxThreshold
+          );
         }
 
         const now = new Date();
-        const timeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+        const timeStr = `${now.getHours()}:${now
+          .getMinutes()
+          .toString()
+          .padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
 
         setData((prev) => {
-          const newData = [...prev, { time: timeStr, current: currentValue, set: setValue }];
+          const newData = [
+            ...prev,
+            { time: timeStr, current: currentValue, set: setValue },
+          ];
           if (newData.length > 20) newData.shift(); // Keep last 20 points
           return newData;
         });
       } catch (error) {
-        console.error("Failed to fetch data for", address, error);
-        // 에러는 전역 ConnectionContext에서 처리됨
+        // AbortError는 무시 (의도된 취소)
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+
+        logger.error(`데이터 수집 실패: ${address}`, "RealtimeChart", error);
+        // ❌ 에러 보고 (연결 끊김 처리)
+        const errorMsg =
+          error instanceof Error ? error.message : "Polling Failed";
+        requestConnectionCheck(errorMsg);
+      } finally {
+        // 연결 상태가 여전히 connected일 때만 다음 폴링 예약
+        if (!controller.signal.aborted) {
+          timeoutId = setTimeout(fetchData, pollingInterval);
+        }
       }
     };
 
     fetchData(); // 초기 데이터 로드
-    const interval = setInterval(fetchData, pollingInterval); // Poll every X seconds
-    return () => clearInterval(interval);
-  }, [address, setAddress, minThreshold, maxThreshold, pollingInterval, plcIp, plcPort, connectionStatus.isConnected]);
+
+    // 정리 함수
+    return () => {
+      controller.abort(); // 진행 중인 요청 취소
+      clearTimeout(timeoutId); // 대기 중인 타이머 취소
+    };
+  }, [
+    address,
+    setAddress,
+    minThreshold,
+    maxThreshold,
+    pollingInterval,
+    plcIp,
+    plcPort,
+    connectionStatus.state,
+    requestConnectionCheck,
+    isDemoMode,
+  ]);
 
   const currentValue = data.length > 0 ? data[data.length - 1].current : 0;
   const setValue = data.length > 0 ? data[data.length - 1].set : 0;
@@ -159,21 +204,23 @@ export function RealtimeChart({
   const borderClass = isAlarm
     ? "border-4 border-red-500 animate-pulse-border"
     : bordered
-      ? "border border-border"
-      : "";
+    ? "border border-border"
+    : "";
 
   /**
    * 테마에 따른 색상 설정
    */
-  const axisColor = theme === 'dark' ? '#e5e7eb' : '#374151'; // dark: gray-200, light: gray-700
-  const gridColor = theme === 'dark' ? '#444' : '#e5e7eb'; // dark: #444, light: gray-200
-  const tooltipBg = theme === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)';
-  const tooltipBorder = theme === 'dark' ? '#333' : '#e5e7eb';
-  const tooltipText = theme === 'dark' ? '#fff' : '#000';
+  const axisColor = theme === "dark" ? "#e5e7eb" : "#374151"; // dark: gray-200, light: gray-700
+  const gridColor = theme === "dark" ? "#444" : "#e5e7eb"; // dark: #444, light: gray-200
+  const tooltipBg =
+    theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(255, 255, 255, 0.9)";
+  const tooltipBorder = theme === "dark" ? "#333" : "#e5e7eb";
+  const tooltipText = theme === "dark" ? "#fff" : "#000";
 
   return (
-    <div className={`w-full h-full relative rounded-lg overflow-hidden ${borderClass} bg-card`}>
-
+    <div
+      className={`w-full h-full relative rounded-lg overflow-hidden ${borderClass} bg-card`}
+    >
       {/* 헤더 영역: 타이틀 및 알람 배지 */}
       <div className="absolute top-0 left-0 right-0 p-2 flex justify-between items-start z-10 pointer-events-none">
         <div className="flex items-center gap-2">
@@ -181,9 +228,16 @@ export function RealtimeChart({
             {title}
           </h3>
           {isAlarm && (
-            <div className="flex items-center justify-center bg-red-500 text-white w-5 h-5 rounded-full animate-pulse shadow-sm" title="알람 발생">
+            <div
+              className="flex items-center justify-center bg-red-500 text-white w-5 h-5 rounded-full animate-pulse shadow-sm"
+              title="알람 발생"
+            >
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
               </svg>
             </div>
           )}
@@ -192,11 +246,13 @@ export function RealtimeChart({
         {/* 현재값/설정값 표시 */}
         <div className="flex flex-col gap-1 items-end">
           <div className="bg-black/70 text-white px-2 py-0.5 rounded text-xs font-bold backdrop-blur-sm">
-            측정: {currentValue.toFixed(1)}{unit}
+            측정: {currentValue.toFixed(1)}
+            {unit}
           </div>
           {setAddress && (
             <div className="bg-blue-600/90 text-white px-2 py-0.5 rounded text-xs font-bold backdrop-blur-sm">
-              설정: {setValue.toFixed(1)}{unit}
+              설정: {setValue.toFixed(1)}
+              {unit}
             </div>
           )}
         </div>
@@ -204,50 +260,58 @@ export function RealtimeChart({
 
       <div className="w-full h-full p-2">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 25, right: 10, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} opacity={0.5} vertical={true} />
-            <XAxis 
-              dataKey="time" 
-              fontSize={11} 
-              tick={{fill: axisColor}} 
+          <LineChart
+            data={data}
+            margin={{ top: 25, right: 10, left: 10, bottom: 5 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke={gridColor}
+              opacity={0.5}
+              vertical={true}
+            />
+            <XAxis
+              dataKey="time"
+              fontSize={11}
+              tick={{ fill: axisColor }}
               tickLine={true}
               axisLine={true}
               stroke={axisColor}
               minTickGap={30}
             />
-            <YAxis 
-              domain={[yMin, yMax]} 
-              fontSize={11} 
-              tick={{fill: axisColor}} 
+            <YAxis
+              domain={[yMin, yMax]}
+              fontSize={11}
+              tick={{ fill: axisColor }}
               unit={unit}
               tickLine={true}
               axisLine={true}
               stroke={axisColor}
               width={50}
             />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: tooltipBg, 
+            <Tooltip
+              contentStyle={{
+                backgroundColor: tooltipBg,
                 border: `1px solid ${tooltipBorder}`,
-                borderRadius: '4px',
-                color: tooltipText
+                borderRadius: "4px",
+                color: tooltipText,
               }}
               itemStyle={{ color: tooltipText }}
-              labelStyle={{ color: axisColor, marginBottom: '0.25rem' }}
+              labelStyle={{ color: axisColor, marginBottom: "0.25rem" }}
             />
-            <Line 
-              type="monotone" 
-              dataKey="current" 
-              stroke={isAlarm ? "#ef4444" : color} 
+            <Line
+              type="monotone"
+              dataKey="current"
+              stroke={isAlarm ? "#ef4444" : color}
               strokeWidth={isAlarm ? 3 : 2}
               dot={false}
               isAnimationActive={false}
             />
             {setAddress && (
-              <Line 
-                type="step" 
-                dataKey="set" 
-                stroke="#3b82f6" 
+              <Line
+                type="step"
+                dataKey="set"
+                stroke="#3b82f6"
                 strokeWidth={1}
                 strokeDasharray="4 4"
                 dot={false}

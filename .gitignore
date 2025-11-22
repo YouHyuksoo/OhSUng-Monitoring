@@ -34,3 +34,6 @@ next-env.d.ts
 node_modules
 nul
 dev-server.log
+
+# local data files
+/data
