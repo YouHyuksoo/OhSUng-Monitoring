@@ -1,0 +1,19 @@
+# Git 속성 파일 - 파일별 줄 바꿈 문자(line ending) 처리 방식을 정의
+# text eol=lf: 해당 파일 타입은 텍스트 파일이며, 항상 LF(\n)를 사용
+# Windows에서도 일관된 LF를 유지하여 협업 시 충돌 방지
+
+# JSON 파일은 항상 LF 사용
+*.json text eol=lf
+
+# JavaScript/TypeScript 파일도 LF 사용
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+
+# 설정 파일들도 LF 사용
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf

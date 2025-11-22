@@ -1,11 +1,22 @@
+/**
+ * @file src/app/monitoring/page.tsx
+ * @description
+ * PLC 모니터링 대시보드 페이지
+ * 실시간 데이터 차트와 전역 PLC 연결 상태를 표시합니다.
+ */
+
 "use client";
 
+import { useRouter } from "next/navigation";
 import { RealtimeChart } from "@/components/Dashboard/RealtimeChart";
 import { PowerUsageChart } from "@/components/Dashboard/PowerUsageChart";
 import { useSettings } from "@/lib/settings-context";
+import { usePLCConnection } from "@/lib/plc-connection-context";
 
 export default function MonitoringPage() {
+  const router = useRouter();
   const { settings } = useSettings();
+  const { connectionStatus } = usePLCConnection();
   
   // 알람 임계값 설정 (설정값 사용)
   const SUJUL_TEMP_MIN = settings.sujulTempMin;
@@ -22,7 +33,67 @@ export default function MonitoringPage() {
   const yeolpungConfigs = settings.chartConfigs?.filter(c => c.type === 'yeolpung') || [];
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 relative">
+      {/* 전역 PLC 연결 실패 오버레이 */}
+      {!connectionStatus.isConnected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-red-900/95 border-2 border-red-500 rounded-lg p-8 max-w-md text-center animate-bounce-slow shadow-2xl">
+            {/* 에러 아이콘 */}
+            <div className="flex justify-center mb-4">
+              <div className="bg-red-600 text-white rounded-full w-16 h-16 flex items-center justify-center animate-pulse">
+                <svg
+                  className="w-8 h-8"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            {/* 에러 메시지 */}
+            <div className="text-white">
+              <p className="text-xl font-bold mb-2">PLC 연결 실패</p>
+              <p className="text-sm text-red-100 mb-3">
+                {connectionStatus.error ||
+                  "설정 페이지에서 PLC IP 주소와 포트를 확인하세요"}
+              </p>
+
+              {/* 상태 표시 */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 text-sm text-red-200">
+                  <span className="inline-block w-2 h-2 bg-red-400 rounded-full animate-pulse"></span>
+                  재연결 시도 중...
+                </div>
+
+                {/* 설정 안내 */}
+                <div className="mt-4 p-3 bg-red-800/50 rounded border border-red-700 text-left">
+                  <p className="text-xs font-semibold text-red-100 mb-1">
+                    확인 사항:
+                  </p>
+                  <ul className="text-xs text-red-200 space-y-1 list-disc list-inside">
+                    <li>설정 → PLC 연결 설정에서 IP/Port 확인</li>
+                    <li>PLC가 정상 작동 중인지 확인</li>
+                    <li>네트워크 연결 상태 확인</li>
+                  </ul>
+                </div>
+
+                {/* 설정으로 이동 버튼 */}
+                <button
+                  onClick={() => router.push("/settings")}
+                  className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors"
+                >
+                  설정으로 이동
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* 상단: 실시간 현황 & 전력 사용 현황 */}
       <div className="grid grid-cols-2 gap-4">
         {/* 실시간 현황 */}

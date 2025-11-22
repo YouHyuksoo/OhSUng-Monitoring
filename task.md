@@ -1,0 +1,21 @@
+# PLC 모니터링 시스템 작업 목록
+
+- [x] 프로젝트 초기화
+    - [x] task.md 생성
+    - [x] implementation_plan.md 생성
+    - [x] Next.js 프로젝트 초기화
+- [x] 백엔드 구현 (PLC 폴링)
+    - [x] PLC 커넥터 인터페이스 설계
+    - [x] 개발용 Mock PLC 구현
+    - [x] 실제 PLC 커넥터 구현 (Mitsubishi MC Protocol - 3E Frame)
+    - [x] 데이터 폴링용 API 엔드포인트 생성
+    - [x] 설정 API 구현 (localStorage 사용, 차트 주소 매핑 포함)
+- [x] 프론트엔드 구현
+    - [x] UI 프레임워크 설정 (Tailwind CSS, Shadcn UI 등 고급스러운 룩앤필)
+    - [x] 레이아웃 생성 (네비게이션, 헤더, PLC 연결 상태 표시)
+    - [x] 대시보드 페이지 구현 (실시간 차트, 상태 표시기)
+    - [x] 설정 페이지 구현 (주소 설정, 알람 제한, localStorage 연동)
+- [ ] 검증
+    - [x] autoprefixer 의존성 해결 (사용자가 설치 완료)
+    - [ ] 수동 테스트 필요 (http://localhost:3002/monitoring)
+    - [ ] UI 반응성 및 심미성 검증

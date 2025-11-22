@@ -31,12 +31,22 @@ export default function SettingsPage() {
   const handleChartConfigChange = (index: number, field: keyof ChartConfig, value: string) => {
     setLocalSettings(prev => {
       const newConfigs = [...prev.chartConfigs];
-      newConfigs[index] = { ...newConfigs[index], [field]: value };
+      const updated = { ...newConfigs[index] };
+      if (field === 'name' || field === 'address' || field === 'setAddress') {
+        updated[field] = value;
+      }
+      newConfigs[index] = updated;
       const next = { ...prev, chartConfigs: newConfigs };
       setIsModified(true);
       return next;
     });
   };
+
+  // 임계값 변수
+  const SUJUL_TEMP_MIN = localSettings.sujulTempMin;
+  const SUJUL_TEMP_MAX = localSettings.sujulTempMax;
+  const YEOLPUNG_TEMP_MIN = localSettings.yeolpungTempMin;
+  const YEOLPUNG_TEMP_MAX = localSettings.yeolpungTempMax;
 
   const handleSave = () => {
     updateSettings(localSettings);
@@ -250,46 +260,235 @@ export default function SettingsPage() {
 
         {/* 차트 주소 매핑 설정 */}
         <div className="bg-card rounded-lg shadow-sm border p-6 lg:col-span-2">
-          <h2 className="text-lg font-semibold mb-4">차트 주소 매핑</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
-                <tr>
-                  <th className="px-4 py-3">차트 이름</th>
-                  <th className="px-4 py-3">타입</th>
-                  <th className="px-4 py-3">측정값 주소 (D)</th>
-                  <th className="px-4 py-3">설정값 주소 (D)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {localSettings.chartConfigs?.map((config, index) => (
-                  <tr key={config.id} className="border-b last:border-0 hover:bg-muted/50">
-                    <td className="px-4 py-3 font-medium">{config.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground capitalize">{config.type}</td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        value={config.address}
-                        onChange={(e) => handleChartConfigChange(index, 'address', e.target.value)}
-                        className="w-24 bg-background border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      {config.setAddress !== undefined ? (
-                        <input
-                          type="text"
-                          value={config.setAddress}
-                          onChange={(e) => handleChartConfigChange(index, 'setAddress', e.target.value)}
-                          className="w-24 bg-background border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">차트 주소 매핑</h2>
+            <span className="text-xs text-muted-foreground">
+              {localSettings.chartConfigs?.length || 0}개 차트 설정됨
+            </span>
+          </div>
+
+          {/* 차트 타입별 섹션 */}
+          <div className="space-y-6">
+            {/* 전력 차트 */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <span className="w-3 h-3 bg-red-500 rounded-full"></span>
+                전력 (Power)
+              </h3>
+              <div className="space-y-3">
+                {localSettings.chartConfigs
+                  ?.filter((c) => c.type === "power")
+                  .map((config, idx) => {
+                    const actualIndex = localSettings.chartConfigs!.findIndex(
+                      (c) => c.id === config.id
+                    );
+                    return (
+                      <div
+                        key={config.id}
+                        className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-muted/30 rounded"
+                      >
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            이름
+                          </label>
+                          <input
+                            type="text"
+                            value={config.name}
+                            onChange={(e) =>
+                              handleChartConfigChange(actualIndex, "name", e.target.value)
+                            }
+                            placeholder="차트 이름"
+                            className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            측정값 주소
+                          </label>
+                          <input
+                            type="text"
+                            value={config.address}
+                            onChange={(e) =>
+                              handleChartConfigChange(actualIndex, "address", e.target.value)
+                            }
+                            placeholder="예: D4032"
+                            className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground flex items-center">
+                          <span className="flex-1">현재 값이 표시됩니다</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* 수절 건조로 차트 */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <span className="w-3 h-3 bg-orange-500 rounded-full"></span>
+                수절 건조로 (온도)
+              </h3>
+              <div className="space-y-3">
+                {localSettings.chartConfigs
+                  ?.filter((c) => c.type === "sujul")
+                  .map((config) => {
+                    const actualIndex = localSettings.chartConfigs!.findIndex(
+                      (c) => c.id === config.id
+                    );
+                    return (
+                      <div
+                        key={config.id}
+                        className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-muted/30 rounded"
+                      >
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            이름
+                          </label>
+                          <input
+                            type="text"
+                            value={config.name}
+                            onChange={(e) =>
+                              handleChartConfigChange(actualIndex, "name", e.target.value)
+                            }
+                            placeholder="예: 수절 1"
+                            className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            현재값 주소
+                          </label>
+                          <input
+                            type="text"
+                            value={config.address}
+                            onChange={(e) =>
+                              handleChartConfigChange(actualIndex, "address", e.target.value)
+                            }
+                            placeholder="예: D400"
+                            className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            설정값 주소
+                          </label>
+                          <input
+                            type="text"
+                            value={config.setAddress || ""}
+                            onChange={(e) =>
+                              handleChartConfigChange(
+                                actualIndex,
+                                "setAddress",
+                                e.target.value
+                              )
+                            }
+                            placeholder="예: D401"
+                            className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground flex items-center">
+                          <span>임계값: {SUJUL_TEMP_MIN}~{SUJUL_TEMP_MAX}°C</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* 열풍 건조로 차트 */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <span className="w-3 h-3 bg-purple-500 rounded-full"></span>
+                열풍 건조로 (온도)
+              </h3>
+              <div className="space-y-3">
+                {localSettings.chartConfigs
+                  ?.filter((c) => c.type === "yeolpung")
+                  .map((config) => {
+                    const actualIndex = localSettings.chartConfigs!.findIndex(
+                      (c) => c.id === config.id
+                    );
+                    return (
+                      <div
+                        key={config.id}
+                        className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-muted/30 rounded"
+                      >
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            이름
+                          </label>
+                          <input
+                            type="text"
+                            value={config.name}
+                            onChange={(e) =>
+                              handleChartConfigChange(actualIndex, "name", e.target.value)
+                            }
+                            placeholder="예: 열풍 1"
+                            className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            현재값 주소
+                          </label>
+                          <input
+                            type="text"
+                            value={config.address}
+                            onChange={(e) =>
+                              handleChartConfigChange(actualIndex, "address", e.target.value)
+                            }
+                            placeholder="예: D430"
+                            className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            설정값 주소
+                          </label>
+                          <input
+                            type="text"
+                            value={config.setAddress || ""}
+                            onChange={(e) =>
+                              handleChartConfigChange(
+                                actualIndex,
+                                "setAddress",
+                                e.target.value
+                              )
+                            }
+                            placeholder="예: D431"
+                            className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground flex items-center">
+                          <span>임계값: {YEOLPUNG_TEMP_MIN}~{YEOLPUNG_TEMP_MAX}°C</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* 설명 */}
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded text-xs dark:bg-blue-900/20 dark:border-blue-800">
+              <p className="font-medium text-blue-800 dark:text-blue-500 mb-1">
+                💡 차트 주소 매핑 가이드
+              </p>
+              <ul className="list-disc list-inside text-blue-700 dark:text-blue-400 space-y-1">
+                <li>
+                  <strong>측정값 주소</strong>: PLC에서 현재 센서 값을 읽는 주소
+                </li>
+                <li>
+                  <strong>설정값 주소</strong>: PLC에 목표 설정값이 저장된 주소
+                </li>
+                <li>
+                  주소 형식: <code className="bg-blue-100 px-1 rounded">D400</code>,{" "}
+                  <code className="bg-blue-100 px-1 rounded">D401</code> 등
+                </li>
+                <li>변경 후 반드시 &quot;설정 저장&quot; 버튼을 클릭하세요</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>

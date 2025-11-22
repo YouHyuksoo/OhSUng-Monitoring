@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(nul)",
+      "Bash(npm run build:*)",
+      "Bash(pkill:*)",
+      "Bash(taskkill:*)",
+      "Bash(lsof:*)",
+      "Bash(netstat:*)",
+      "Bash(kill:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

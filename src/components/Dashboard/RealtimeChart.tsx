@@ -25,6 +25,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useTheme } from "@/components/theme-provider";
+import { usePLCConnection } from "@/lib/plc-connection-context";
 
 interface DataPoint {
   time: string;
@@ -48,11 +49,19 @@ interface RealtimeChartProps {
   plcPort?: number;
 }
 
-export function RealtimeChart({ 
-  address, 
+/**
+ * 연결 상태를 나타내는 인터페이스
+ */
+interface ConnectionStatus {
+  isConnected: boolean;
+  error?: string;
+}
+
+export function RealtimeChart({
+  address,
   setAddress,
-  title, 
-  color = "#8884d8", 
+  title,
+  color = "#8884d8",
   unit = "",
   minThreshold,
   maxThreshold,
@@ -66,8 +75,30 @@ export function RealtimeChart({
   const [data, setData] = useState<DataPoint[]>([]);
   const [isAlarm, setIsAlarm] = useState(false);
   const { theme } = useTheme();
+  const { connectionStatus } = usePLCConnection();
 
+  /**
+   * PLC 연결 상태 변화 감지
+   * - 연결 실패 시 데이터 초기화
+   */
   useEffect(() => {
+    if (!connectionStatus.isConnected) {
+      setData([]);
+      setIsAlarm(false);
+    }
+  }, [connectionStatus.isConnected]);
+
+  /**
+   * PLC 데이터 폴링 함수
+   * - 주기적으로 PLC에서 데이터 읽기
+   * - 에러는 콘솔에만 로깅 (전역 상태에서 처리)
+   * - 연결 실패 시 폴링 중단
+   */
+  useEffect(() => {
+    // 연결 실패 시 폴링 중단
+    if (!connectionStatus.isConnected) {
+      return;
+    }
     const fetchData = async () => {
       try {
         const addresses = setAddress ? `${address},${setAddress}` : address;
@@ -75,17 +106,29 @@ export function RealtimeChart({
         if (plcIp && plcPort) {
           url += `&ip=${plcIp}&port=${plcPort}`;
         }
-        
+
         const res = await fetch(url);
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || `HTTP Error: ${res.status}`);
+        }
+
         const json = await res.json();
+
+        // 필수 데이터 검증
+        if (!json || typeof json[address] !== 'number') {
+          throw new Error(`Invalid data received for address ${address}`);
+        }
+
         const currentValue = json[address];
         const setValue = setAddress ? json[setAddress] : currentValue;
-        
+
         // 알람 체크 (측정값 기준)
         if (minThreshold !== undefined && maxThreshold !== undefined) {
           setIsAlarm(currentValue < minThreshold || currentValue > maxThreshold);
         }
-        
+
         const now = new Date();
         const timeStr = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
 
@@ -95,26 +138,33 @@ export function RealtimeChart({
           return newData;
         });
       } catch (error) {
-        console.error("Failed to fetch data", error);
+        console.error("Failed to fetch data for", address, error);
+        // 에러는 전역 ConnectionContext에서 처리됨
       }
     };
 
     fetchData(); // 초기 데이터 로드
     const interval = setInterval(fetchData, pollingInterval); // Poll every X seconds
     return () => clearInterval(interval);
-  }, [address, setAddress, minThreshold, maxThreshold, pollingInterval, plcIp, plcPort]);
+  }, [address, setAddress, minThreshold, maxThreshold, pollingInterval, plcIp, plcPort, connectionStatus.isConnected]);
 
   const currentValue = data.length > 0 ? data[data.length - 1].current : 0;
   const setValue = data.length > 0 ? data[data.length - 1].set : 0;
 
-  // 테두리 스타일 계산
-  const borderClass = isAlarm 
-    ? "border-4 border-red-500 animate-pulse-border" 
-    : bordered 
-      ? "border border-border" 
+  /**
+   * 테두리 스타일 계산
+   * - 알람 상태: 빨간색 테두리 + 애니메이션
+   * - 정상 상태: 기본 테두리
+   */
+  const borderClass = isAlarm
+    ? "border-4 border-red-500 animate-pulse-border"
+    : bordered
+      ? "border border-border"
       : "";
 
-  // 테마에 따른 색상 설정
+  /**
+   * 테마에 따른 색상 설정
+   */
   const axisColor = theme === 'dark' ? '#e5e7eb' : '#374151'; // dark: gray-200, light: gray-700
   const gridColor = theme === 'dark' ? '#444' : '#e5e7eb'; // dark: #444, light: gray-200
   const tooltipBg = theme === 'dark' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)';
@@ -123,6 +173,7 @@ export function RealtimeChart({
 
   return (
     <div className={`w-full h-full relative rounded-lg overflow-hidden ${borderClass} bg-card`}>
+
       {/* 헤더 영역: 타이틀 및 알람 배지 */}
       <div className="absolute top-0 left-0 right-0 p-2 flex justify-between items-start z-10 pointer-events-none">
         <div className="flex items-center gap-2">

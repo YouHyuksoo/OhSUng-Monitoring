@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Header } from "@/components/Layout/Header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SettingsProvider } from "@/lib/settings-context";
+import { PLCConnectionProvider } from "@/lib/plc-connection-context";
 
 export const metadata: Metadata = {
   title: "PLC Monitoring System",
@@ -20,10 +21,12 @@ export default function RootLayout({
       <body className={cn("min-h-screen bg-background font-sans antialiased")}>
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
           <SettingsProvider>
-            <Header />
-            <main className="w-full py-6">
-              {children}
-            </main>
+            <PLCConnectionProvider>
+              <Header />
+              <main className="w-full py-6">
+                {children}
+              </main>
+            </PLCConnectionProvider>
           </SettingsProvider>
         </ThemeProvider>
       </body>
