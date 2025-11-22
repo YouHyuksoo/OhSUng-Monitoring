@@ -198,21 +198,27 @@ export function PLCConnectionProvider({
     });
   }, []);
 
-  // 초기 진입 및 설정 변경 시 연결 시도
+  /**
+   * 초기 진입 및 설정 변경 시 연결 시도
+   * - 데모 모드: chartConfigs 검증 스킵
+   * - 실제 모드: 모든 설정 필수 검증
+   */
   useEffect(() => {
     isMountedRef.current = true;
 
-    // 설정 검증
-    if (
-      !settings.plcIp ||
-      !settings.plcPort ||
-      !settings.chartConfigs?.length
-    ) {
-      setConnectionStatus({
-        state: "disconnected",
-        error: "설정이 불완전합니다. 설정 페이지를 확인하세요.",
-      });
-      return;
+    // 설정 검증 (데모 모드에서는 차트 설정 불필요)
+    if (!isDemoMode) {
+      if (
+        !settings.plcIp ||
+        !settings.plcPort ||
+        !settings.chartConfigs?.length
+      ) {
+        setConnectionStatus({
+          state: "disconnected",
+          error: "설정이 불완전합니다. 설정 페이지를 확인하세요.",
+        });
+        return;
+      }
     }
 
     // 🚀 즉시 연결 시도
@@ -228,6 +234,7 @@ export function PLCConnectionProvider({
     settings.plcIp,
     settings.plcPort,
     JSON.stringify(settings.chartConfigs),
+    isDemoMode,
   ]);
 
   return (

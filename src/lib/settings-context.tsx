@@ -121,15 +121,23 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const toggleDemoMode = () => setIsDemoMode((prev) => !prev);
 
-  // Load settings from server on mount
+  /**
+   * 서버에서 설정을 로드합니다.
+   * - 서버 데이터가 기본값과 병합됨
+   * - chartConfigs가 비어있으면 기본값 사용
+   */
   useEffect(() => {
     const loadSettings = async () => {
       try {
         const response = await fetch("/api/settings");
         if (response.ok) {
           const data = await response.json();
-          // Merge with default settings to ensure new fields are present
-          setSettings({ ...defaultSettings, ...data });
+          // chartConfigs가 비어있으면 기본값 사용 (빈 배열 방지)
+          const mergedSettings = { ...defaultSettings, ...data };
+          if (!mergedSettings.chartConfigs || mergedSettings.chartConfigs.length === 0) {
+            mergedSettings.chartConfigs = defaultSettings.chartConfigs;
+          }
+          setSettings(mergedSettings);
         }
       } catch (error) {
         console.error("Failed to load settings from server:", error);
