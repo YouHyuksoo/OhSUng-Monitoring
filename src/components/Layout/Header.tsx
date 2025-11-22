@@ -111,7 +111,7 @@ export function Header() {
             onClick={() => {
               alert("로그아웃 기능은 준비 중입니다.");
             }}
-            className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors bg-red-600 hover:bg-red-500 text-white px-3 h-9"
+            className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors bg-blue-400 hover:bg-blue-300 dark:bg-blue-600 dark:hover:bg-blue-500 text-white px-3 h-9"
             title="로그아웃"
           >
             <LogOut className="h-4 w-4" />
