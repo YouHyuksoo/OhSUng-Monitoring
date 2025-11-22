@@ -17,13 +17,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" suppressHydrationWarning>
-      <body className={cn("min-h-screen bg-background font-sans antialiased")}>
+    <html lang="ko" suppressHydrationWarning className="h-screen overflow-hidden">
+      <body className={cn("h-screen flex flex-col bg-background font-sans antialiased overflow-hidden")}>
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
           <SettingsProvider>
             <PLCConnectionProvider>
               <Header />
-              <main className="w-full">{children}</main>
+              <main className="flex-1 w-full overflow-auto">{children}</main>
             </PLCConnectionProvider>
           </SettingsProvider>
         </ThemeProvider>

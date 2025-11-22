@@ -11,6 +11,7 @@ export interface ChartConfig {
 }
 
 export interface Settings {
+  appTitle: string;
   plcIp: string;
   plcPort: number;
   pollingInterval: number;
@@ -26,6 +27,7 @@ export interface Settings {
 }
 
 const defaultSettings: Settings = {
+  appTitle: "PLC 모니터링",
   plcIp: "127.0.0.1",
   plcPort: 502,
   pollingInterval: 2000,

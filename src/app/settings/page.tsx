@@ -113,6 +113,31 @@ export default function SettingsPage() {
         </button>
       </div>
 
+      <div className="grid grid-cols-1 gap-6">
+        {/* 애플리케이션 타이틀 설정 */}
+        <div className="bg-card p-6 rounded-lg shadow border">
+          <h2 className="text-lg font-semibold mb-4">애플리케이션 설정</h2>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="appTitle" className="text-sm font-medium block mb-1.5">
+                애플리케이션 타이틀
+              </label>
+              <input
+                type="text"
+                id="appTitle"
+                value={localSettings.appTitle}
+                onChange={(e) => handleChange("appTitle", e.target.value)}
+                placeholder="PLC 모니터링"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                헤더에 표시될 애플리케이션 이름을 입력하세요.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* PLC 연결 설정 */}
         <div className="bg-card p-6 rounded-lg shadow border">

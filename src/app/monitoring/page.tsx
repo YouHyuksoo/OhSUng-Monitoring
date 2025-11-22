@@ -150,7 +150,7 @@ export default function MonitoringPage() {
   }
   // ✅ 연결 성공 - 모니터링 페이지 표시
   return (
-    <div className="p-4 gap-4 flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
+    <div className="p-4 gap-4 flex flex-col h-full overflow-hidden">
       {/* 상단: 실시간 현황 & 전력 사용 현황 */}
       <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
         {/* 실시간 현황 */}
