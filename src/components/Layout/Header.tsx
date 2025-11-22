@@ -1,7 +1,7 @@
 /**
  * @file src/components/Layout/Header.tsx
  * @description
- * 헤더 컴포넌트 - 네비게이션, PLC 연결 상태, 테마 토글 포함
+ * 헤더 컴포넌트 - 네비게이션, PLC 연결 상태, 테마 토글, 로그아웃 기능 포함
  */
 
 "use client";
@@ -11,13 +11,16 @@ import { useTheme } from "@/components/theme-provider";
 import { useSettings } from "@/lib/settings-context";
 import { Moon, Sun, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export function Header() {
   const { theme, setTheme } = useTheme();
   const { settings } = useSettings();
   const pathname = usePathname();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   /**
    * 현재 페이지에 따른 타이틀 가져오기
@@ -35,6 +38,32 @@ export function Header() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  /**
+   * 로그아웃 처리
+   * - 폴링 중인 API 요청 취소
+   * - localStorage 초기화
+   * - 모니터링 페이지로 리다이렉트
+   */
+  const handleLogout = () => {
+    // 모든 폴링 중인 요청 취소
+    if (window.abortControllers) {
+      Object.values(window.abortControllers).forEach((controller: any) => {
+        if (controller instanceof AbortController) {
+          controller.abort();
+        }
+      });
+    }
+
+    // localStorage 초기화
+    localStorage.clear();
+
+    // 모니터링 페이지로 이동
+    router.push("/monitoring");
+
+    // 다이얼로그 닫기
+    setShowLogoutDialog(false);
+  };
 
   return (
     <header className="border-b bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-900 dark:to-blue-950 shadow-md">
@@ -108,9 +137,7 @@ export function Header() {
 
           {/* 로그아웃 버튼 */}
           <button
-            onClick={() => {
-              alert("로그아웃 기능은 준비 중입니다.");
-            }}
+            onClick={() => setShowLogoutDialog(true)}
             className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors bg-blue-400 hover:bg-blue-300 dark:bg-blue-600 dark:hover:bg-blue-500 text-white px-3 h-9"
             title="로그아웃"
           >
@@ -119,6 +146,19 @@ export function Header() {
           </button>
         </div>
       </div>
+
+      {/* 로그아웃 확인 다이얼로그 */}
+      {showLogoutDialog && (
+        <ConfirmDialog
+          title="로그아웃"
+          message="정말로 로그아웃하시겠습니까? 진행 중인 모니터링이 중지됩니다."
+          confirmText="로그아웃"
+          cancelText="취소"
+          variant="danger"
+          onConfirm={handleLogout}
+          onCancel={() => setShowLogoutDialog(false)}
+        />
+      )}
     </header>
   );
 }
