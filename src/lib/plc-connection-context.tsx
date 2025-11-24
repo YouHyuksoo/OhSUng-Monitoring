@@ -149,7 +149,7 @@ export function PLCConnectionProvider({
         }, retryInterval);
       }
     }
-  }, [settings.plcIp, settings.plcPort, settings.chartConfigs, settings.plcType, settings.plcType === "demo"]);
+  }, [settings.plcIp, settings.plcPort, settings.chartConfigs, settings.plcType]);
 
   /**
    * 외부(컴포넌트)에서 에러 보고 시 호출

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 /**
  * 차트 설정 인터페이스
@@ -153,6 +153,8 @@ const SettingsContext = createContext<SettingsContextType | undefined>(
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoaded, setIsLoaded] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedSettingsRef = useRef<Settings | null>(null);
 
   /**
    * 서버에서 설정을 로드합니다.
@@ -182,6 +184,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           console.log("[SettingsContext] plcType:", loadedSettings.plcType);
 
           setSettings(loadedSettings);
+          lastSavedSettingsRef.current = loadedSettings;
         }
       } catch (error) {
         console.error("Failed to load settings from server:", error);
@@ -195,23 +198,52 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     loadSettings();
   }, []);
 
-  // Save settings to server whenever they change
+  /**
+   * 설정이 변경될 때 서버에 저장합니다.
+   * - 디바운싱(500ms)으로 불필요한 저장 방지
+   * - 마지막 저장한 설정과 다를 때만 저장
+   * - 자동 저장 기능 (updateSettings로 변경 시에만)
+   */
   useEffect(() => {
-    if (isLoaded) {
-      const saveSettings = async () => {
-        try {
-          await fetch("/api/settings", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(settings),
-          });
-        } catch (error) {
-          console.error("Failed to save settings to server:", error);
-        }
-      };
+    // isLoaded 되지 않았거나 설정이 로드된 직후는 저장하지 않음
+    if (!isLoaded) return;
 
-      saveSettings();
+    // 마지막 저장한 설정과 동일하면 저장하지 않음
+    if (
+      lastSavedSettingsRef.current &&
+      JSON.stringify(lastSavedSettingsRef.current) ===
+        JSON.stringify(settings)
+    ) {
+      return;
     }
+
+    // 기존 타이머 취소
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // 500ms 후 저장 (디바운싱)
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        console.log("[SettingsContext] Saving settings to server...");
+        await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(settings),
+        });
+        lastSavedSettingsRef.current = settings;
+        console.log("[SettingsContext] Settings saved successfully");
+      } catch (error) {
+        console.error("Failed to save settings to server:", error);
+      }
+    }, 500);
+
+    // cleanup: 언마운트 시 타이머 정리
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [settings, isLoaded]);
 
   const updateSettings = (newSettings: Partial<Settings>) => {
