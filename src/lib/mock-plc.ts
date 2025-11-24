@@ -33,6 +33,7 @@ export class MockPLC implements PLCConnector {
     this.memory.set("D4024", 2200); // Active Power
     this.memory.set("D4030", 60); // Frequency
     this.memory.set("D4032", 15000 + Math.random() * 1000); // Forward Active Energy (Wh) - 15000-16000
+    this.memory.set("D6100", 5000); // Hourly Energy Accumulation (Wh) - 초기값
   }
 
   async connect(): Promise<void> {
@@ -63,6 +64,9 @@ export class MockPLC implements PLCConnector {
           // Power Energy
           val += (Math.random() - 0.5) * 10;
           val = Math.round(val);
+        } else if (addr === "D6100") {
+          // Hourly Energy Accumulation (Wh) - 계속 증가
+          val += Math.round(Math.random() * 50); // 0~50Wh 증가
         }
         result[addr] = val;
         this.memory.set(addr, val);

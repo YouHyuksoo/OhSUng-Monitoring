@@ -13,20 +13,27 @@ import { hourlyEnergyService } from "@/lib/hourly-energy-service";
 export async function GET(request: Request) {
   try {
     // 현재 폴링 상태 조회
+    const isRealtimePolling = realtimeDataService.isPollingActive();
+    const isHourlyPolling = hourlyEnergyService.isPollingActive();
+
     const realtimeStatus = {
-      isPolling: true, // realtime-data-service는 시작되면 계속 폴링
+      isPolling: isRealtimePolling,
       lastUpdate: new Date().toISOString(),
-      message: "실시간 데이터 폴링이 진행 중입니다",
+      message: isRealtimePolling
+        ? "실시간 데이터 폴링이 진행 중입니다"
+        : "실시간 데이터 폴링이 중지되었습니다",
     };
 
     const hourlyStatus = {
-      isPolling: true, // hourly-energy-service는 시작되면 계속 폴링
+      isPolling: isHourlyPolling,
       lastUpdate: new Date().toISOString(),
-      message: "시간별 에너지 폴링이 진행 중입니다",
+      message: isHourlyPolling
+        ? "시간별 에너지 폴링이 진행 중입니다"
+        : "시간별 에너지 폴링이 중지되었습니다",
     };
 
     return NextResponse.json({
-      status: "running",
+      status: isRealtimePolling || isHourlyPolling ? "running" : "stopped",
       services: {
         realtime: realtimeStatus,
         hourly: hourlyStatus,

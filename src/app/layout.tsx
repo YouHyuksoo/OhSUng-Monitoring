@@ -5,6 +5,7 @@ import { Header } from "@/components/Layout/Header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/lib/auth-context";
 import { PLCConnectionProvider } from "@/lib/plc-connection-context";
+import { SettingsInitializer } from "@/components/settings-initializer";
 
 export const metadata: Metadata = {
   title: "PLC Monitoring System",
@@ -17,11 +18,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" suppressHydrationWarning className="h-screen overflow-hidden">
-      <body className={cn("h-screen flex flex-col bg-background font-sans antialiased overflow-hidden")}>
+    <html
+      lang="ko"
+      suppressHydrationWarning
+      className="h-screen overflow-hidden"
+    >
+      <body
+        className={cn(
+          "h-screen flex flex-col bg-background font-sans antialiased overflow-hidden"
+        )}
+      >
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
           <AuthProvider>
             <PLCConnectionProvider>
+              <SettingsInitializer />
               <Header />
               <main className="flex-1 w-full overflow-auto">{children}</main>
             </PLCConnectionProvider>

@@ -15,6 +15,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { McPLC } from "./mc-plc";
+import { XgtModbusPLC } from "./xgt-modbus-plc";
 import { plc as mockPlc } from "./mock-plc";
 import { PLCConnector } from "./plc-connector";
 
@@ -69,7 +70,10 @@ class RealtimeDataService {
 
       console.log("[RealtimeDataService] Database initialized");
     } catch (error) {
-      console.error("[RealtimeDataService] Database initialization error:", error);
+      console.error(
+        "[RealtimeDataService] Database initialization error:",
+        error
+      );
     }
   }
 
@@ -81,7 +85,8 @@ class RealtimeDataService {
     ip: string,
     port: number,
     interval: number = 2000,
-    isDemoMode: boolean = false
+    plcType: string = "mc", // isDemoMode 대신 plcType 사용
+    addressMapping?: any // Modbus 매핑 정보 추가
   ): void {
     // DB 초기화
     if (!this.db) {
@@ -97,10 +102,21 @@ class RealtimeDataService {
     this.pollInterval = interval;
 
     // 연결 설정
-    if (isDemoMode) {
+    if (plcType === "demo") {
       this.connection = mockPlc;
+    } else if (plcType === "modbus") {
+      // Modbus TCP 연결
+      const mapping = addressMapping || { dAddressBase: 0, modbusOffset: 0 };
+      this.connection = new XgtModbusPLC(ip, port, 1, mapping);
+      console.log(
+        `[RealtimeDataService] Connecting to LS Modbus TCP at ${ip}:${port}`
+      );
     } else {
+      // 기본값: Mitsubishi MC Protocol
       this.connection = new McPLC(ip, port);
+      console.log(
+        `[RealtimeDataService] Connecting to Mitsubishi MC at ${ip}:${port}`
+      );
     }
 
     // 즉시 첫 폴링 실행
@@ -126,6 +142,13 @@ class RealtimeDataService {
     }
     this.memoryCache.clear();
     console.log("[RealtimeDataService] Polling stopped");
+  }
+
+  /**
+   * 폴링 상태 확인
+   */
+  isPollingActive(): boolean {
+    return this.pollingInterval !== null;
   }
 
   /**
@@ -227,7 +250,9 @@ class RealtimeDataService {
         this.updateMemoryCache(point.address, point.value, point.timestamp);
       });
 
-      console.log(`[RealtimeDataService] Inserted ${points.length} test data points`);
+      console.log(
+        `[RealtimeDataService] Inserted ${points.length} test data points`
+      );
     } catch (error) {
       console.error("[RealtimeDataService] Failed to insert test data:", error);
     }
@@ -263,10 +288,7 @@ class RealtimeDataService {
 
       return stmt.all(address, startTime, endTime) as RealtimeDataPoint[];
     } catch (error) {
-      console.error(
-        "[RealtimeDataService] Failed to get data range:",
-        error
-      );
+      console.error("[RealtimeDataService] Failed to get data range:", error);
       return [];
     }
   }
@@ -314,5 +336,15 @@ class RealtimeDataService {
   }
 }
 
-// 싱글톤 인스턴스
-export const realtimeDataService = new RealtimeDataService();
+// 전역 타입 선언
+declare global {
+  var realtimeDataService: RealtimeDataService | undefined;
+}
+
+// 싱글톤 인스턴스 관리
+export const realtimeDataService =
+  global.realtimeDataService || new RealtimeDataService();
+
+if (process.env.NODE_ENV !== "production") {
+  global.realtimeDataService = realtimeDataService;
+}

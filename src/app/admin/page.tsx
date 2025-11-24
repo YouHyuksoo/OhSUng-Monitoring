@@ -144,6 +144,7 @@ export default function AdminPage() {
           ip: settings.plcIp,
           port: settings.plcPort,
           plcType: settings.plcType,
+          modbusAddressMapping: settings.modbusAddressMapping,
         }),
       });
 
@@ -157,6 +158,7 @@ export default function AdminPage() {
           interval: settings.pollingInterval,
           chartConfigs: settings.chartConfigs,
           plcType: settings.plcType,
+          modbusAddressMapping: settings.modbusAddressMapping,
         }),
       });
 
@@ -201,12 +203,9 @@ export default function AdminPage() {
   const handleCleanupDB = async () => {
     setIsCleaningDB(true);
     try {
-      const response = await fetch(
-        `/api/db/cleanup?daysToKeep=${daysToKeep}`,
-        {
-          method: "POST",
-        }
-      );
+      const response = await fetch(`/api/db/cleanup?daysToKeep=${daysToKeep}`, {
+        method: "POST",
+      });
 
       if (response.ok) {
         await checkDBStats();
@@ -226,7 +225,6 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-
       {/* 메인 콘텐츠 */}
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* 폴링 서비스 카드 */}
@@ -267,6 +265,13 @@ export default function AdminPage() {
             <div>
               <p className="text-xs text-slate-400 mb-1">PLC 설정</p>
               <p className="text-sm font-semibold text-white">
+                {settings.plcType === "demo"
+                  ? "Demo Mode"
+                  : settings.plcType === "modbus"
+                  ? "LS Modbus"
+                  : "Mitsubishi MC"}
+              </p>
+              <p className="text-xs text-slate-500">
                 {settings.plcIp}:{settings.plcPort}
               </p>
             </div>
@@ -372,9 +377,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">데이터베이스</h2>
-                <p className="text-sm text-slate-400">
-                  SQLite DB 상태 및 관리
-                </p>
+                <p className="text-sm text-slate-400">SQLite DB 상태 및 관리</p>
               </div>
             </div>
           </div>
@@ -467,7 +470,6 @@ export default function AdminPage() {
           </button>
         </div>
 
-
         {/* 관리 메뉴 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* 설정 관리 */}
@@ -549,7 +551,8 @@ export default function AdminPage() {
               오래된 데이터 정리
             </h3>
             <p className="text-sm text-slate-300 mb-4">
-              지정한 날짜보다 오래된 모든 데이터가 삭제됩니다. 신중하게 선택해주세요.
+              지정한 날짜보다 오래된 모든 데이터가 삭제됩니다. 신중하게
+              선택해주세요.
             </p>
             <div className="mb-6">
               <label className="block text-sm font-medium text-slate-300 mb-2">

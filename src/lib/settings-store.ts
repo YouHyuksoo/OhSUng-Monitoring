@@ -5,6 +5,10 @@
  * - 서버에서 설정 로드
  * - 설정 변경 시 자동 저장 (디바운싱)
  * - chartConfigs 기본값 처리
+ *
+ * 주의: 함수 참조 안정성을 위해 actions을 별도로 작성
+ * - useSettings hook의 의존성 배열에 함수를 넣지 않으려면
+ * - 함수들이 항상 같은 참조를 유지해야 함
  */
 
 import { create } from "zustand";
@@ -130,6 +134,7 @@ const DEFAULT_SETTINGS: Settings = {
 interface SettingsStore {
   settings: Settings;
   isLoaded: boolean;
+  isLoading: boolean; // 로딩 중 플래그 추가
   isSaving: boolean;
   error?: string;
 
@@ -146,16 +151,33 @@ export const useSettingsStore = create<SettingsStore>()(
   immer((set, get) => ({
     settings: DEFAULT_SETTINGS,
     isLoaded: false,
+    isLoading: false, // 초기 로딩 상태
     isSaving: false,
     error: undefined,
 
     /**
      * 서버에서 설정 로드
+     * - 중복 호출 방지: 이미 로딩 중이거나 로드 완료된 경우 스킵
      */
     loadSettings: async () => {
-      if (process.env.NODE_ENV === "development") {
-        console.log("[SettingsStore] useEffect triggered - loading settings");
+      const currentState = get();
+
+      // 이미 로딩 중이거나 로드 완료된 경우 중복 호출 방지
+      if (currentState.isLoading || currentState.isLoaded) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("[SettingsStore] Already loading or loaded, skipping...");
+        }
+        return;
       }
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[SettingsStore] Starting to load settings...");
+      }
+
+      // 로딩 시작
+      set((state) => {
+        state.isLoading = true;
+      });
 
       try {
         const response = await fetch("/api/settings");
@@ -177,23 +199,29 @@ export const useSettingsStore = create<SettingsStore>()(
         };
 
         if (process.env.NODE_ENV === "development") {
-          console.log("[SettingsStore] Applied settings. plcType:", loadedSettings.plcType);
+          console.log(
+            "[SettingsStore] Applied settings. plcType:",
+            loadedSettings.plcType
+          );
         }
 
         set((state) => {
           state.settings = loadedSettings;
           state.isLoaded = true;
+          state.isLoading = false;
           state.error = undefined;
         });
 
         lastSavedSettings = loadedSettings;
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : "Failed to load settings";
+        const errorMsg =
+          error instanceof Error ? error.message : "Failed to load settings";
         console.error("Failed to load settings from server:", errorMsg);
 
         set((state) => {
           state.settings = DEFAULT_SETTINGS;
           state.isLoaded = true;
+          state.isLoading = false;
           state.error = errorMsg;
         });
       }
@@ -222,7 +250,8 @@ export const useSettingsStore = create<SettingsStore>()(
           // 마지막 저장한 설정과 동일하면 저장 안 함
           if (
             lastSavedSettings &&
-            JSON.stringify(lastSavedSettings) === JSON.stringify(currentSettings)
+            JSON.stringify(lastSavedSettings) ===
+              JSON.stringify(currentSettings)
           ) {
             if (process.env.NODE_ENV === "development") {
               console.log("[SettingsStore] Settings unchanged, skipping save");
@@ -257,7 +286,8 @@ export const useSettingsStore = create<SettingsStore>()(
             state.error = undefined;
           });
         } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : "Failed to save settings";
+          const errorMsg =
+            error instanceof Error ? error.message : "Failed to save settings";
           console.error(errorMsg);
 
           set((state) => {

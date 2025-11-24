@@ -23,11 +23,8 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
-    // 이미 로그인되어 있으면 관리자 페이지로 직접 이동
-    if (isAuthenticated) {
-      router.push("/admin");
-    }
-  }, [isAuthenticated, router]);
+    // 자동 리다이렉트 제거: 사용자가 명시적으로 선택하도록 변경
+  }, []);
 
   if (!mounted) {
     return null;

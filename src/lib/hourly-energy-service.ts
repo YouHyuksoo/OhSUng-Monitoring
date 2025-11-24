@@ -13,6 +13,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { McPLC } from "./mc-plc";
+import { XgtModbusPLC } from "./xgt-modbus-plc";
 import { plc as mockPlc } from "./mock-plc";
 import { PLCConnector } from "./plc-connector";
 
@@ -71,7 +72,8 @@ class HourlyEnergyService {
   startHourlyPolling(
     ip: string,
     port: number,
-    isDemoMode: boolean = false
+    plcType: string = "mc", // isDemoMode 대신 plcType 사용
+    addressMapping?: any // Modbus 매핑 정보 추가
   ): void {
     this.ip = ip;
     this.port = port;
@@ -82,10 +84,21 @@ class HourlyEnergyService {
     }
 
     // 연결 설정
-    if (isDemoMode) {
+    if (plcType === "demo") {
       this.connection = mockPlc;
+    } else if (plcType === "modbus") {
+      // Modbus TCP 연결
+      const mapping = addressMapping || { dAddressBase: 0, modbusOffset: 0 };
+      this.connection = new XgtModbusPLC(ip, port, 1, mapping);
+      console.log(
+        `[HourlyEnergyService] Connecting to LS Modbus TCP at ${ip}:${port}`
+      );
     } else {
+      // 기본값: Mitsubishi MC Protocol
       this.connection = new McPLC(ip, port);
+      console.log(
+        `[HourlyEnergyService] Connecting to Mitsubishi MC at ${ip}:${port}`
+      );
     }
 
     // 초기화
@@ -108,6 +121,20 @@ class HourlyEnergyService {
       clearTimeout(this.pollingInterval);
       this.pollingInterval = null;
     }
+  }
+
+  /**
+   * 폴링 중지 (Alias for consistency)
+   */
+  stopPolling(): void {
+    this.stopHourlyPolling();
+  }
+
+  /**
+   * 폴링 상태 확인
+   */
+  isPollingActive(): boolean {
+    return this.pollingInterval !== null;
   }
 
   /**
@@ -259,7 +286,10 @@ class HourlyEnergyService {
   }
 
   private pollD6100 = async () => {
-    if (!this.connection) return;
+    if (!this.connection) {
+      console.warn("[HourlyEnergyService] No connection available for polling");
+      return;
+    }
 
     try {
       // 자정 확인 - 날짜가 바뀌었으면 초기화
@@ -272,8 +302,10 @@ class HourlyEnergyService {
       }
 
       // D6100 데이터 읽기
+      console.log("[HourlyEnergyService] Reading D6100...");
       const data = await this.connection.read(["D6100"]);
       const value = data["D6100"];
+      console.log(`[HourlyEnergyService] Read D6100 value: ${value}`);
 
       if (typeof value === "number") {
         const hour = this.getCurrentHour();
@@ -287,7 +319,13 @@ class HourlyEnergyService {
 
           // 다음 정각 스케줄링
           this.scheduleNextPoll();
+        } else {
+          console.error(
+            "[HourlyEnergyService] currentData is null, cannot update"
+          );
         }
+      } else {
+        console.warn(`[HourlyEnergyService] Invalid value for D6100: ${value}`);
       }
     } catch (error) {
       console.error("[HourlyEnergyService] Polling failed:", error);
@@ -319,5 +357,15 @@ class HourlyEnergyService {
   }
 }
 
-// 싱글톤 인스턴스
-export const hourlyEnergyService = new HourlyEnergyService();
+// 전역 타입 선언
+declare global {
+  var hourlyEnergyService: HourlyEnergyService | undefined;
+}
+
+// 싱글톤 인스턴스 관리
+export const hourlyEnergyService =
+  global.hourlyEnergyService || new HourlyEnergyService();
+
+if (process.env.NODE_ENV !== "production") {
+  global.hourlyEnergyService = hourlyEnergyService;
+}

@@ -30,7 +30,20 @@ function extractAllAddresses(chartConfigs: any[]): string[] {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { ip, port, interval = 2000, chartConfigs, plcType } = body;
+    let {
+      ip,
+      port,
+      interval = 2000,
+      chartConfigs,
+      plcType,
+      modbusAddressMapping,
+    } = body;
+
+    // 데모 모드일 경우 기본값 설정
+    if (plcType === "demo") {
+      ip = ip || "demo";
+      port = port || 502;
+    }
 
     if (!ip || !port) {
       return NextResponse.json(
@@ -49,16 +62,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // plcType이 "demo"인 경우 데모 모드로 실행
-    const isDemoMode = plcType === "demo";
-
     // 실시간 데이터 폴링 시작
     realtimeDataService.startPolling(
       addresses,
       ip,
       parseInt(port),
       interval,
-      isDemoMode
+      plcType, // plcType 전달
+      modbusAddressMapping // 매핑 정보 전달
     );
 
     return NextResponse.json({

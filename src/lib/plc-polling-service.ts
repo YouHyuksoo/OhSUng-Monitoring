@@ -52,7 +52,9 @@ class PLCPollingService {
     this.pollingConfigs.set(key, config);
     this.initializeCache(key);
     this.startPolling(key);
-    console.log(`Polling registered for ${key} with interval ${config.interval}ms`);
+    console.log(
+      `Polling registered for ${key} with interval ${config.interval}ms`
+    );
   }
 
   /**
@@ -175,11 +177,14 @@ class PLCPollingService {
         }));
         realtimeDataService.insertTestData(testDataPoints);
 
-        console.log(`[Polling] ${key} - Data updated at ${new Date().toISOString()}`);
+        console.log(
+          `[Polling] ${key} - Data updated at ${new Date().toISOString()}`
+        );
       } catch (error) {
         const cached = this.cachedData.get(key);
         if (cached) {
-          cached.error = error instanceof Error ? error.message : "Unknown error";
+          cached.error =
+            error instanceof Error ? error.message : "Unknown error";
           cached.lastUpdate = Date.now();
         }
         console.error(`[Polling] ${key} - Error:`, error);
@@ -195,5 +200,14 @@ class PLCPollingService {
   }
 }
 
-// 싱글톤 인스턴스
-export const pollingService = new PLCPollingService();
+// 전역 타입 선언
+declare global {
+  var pollingService: PLCPollingService | undefined;
+}
+
+// 싱글톤 인스턴스 관리
+export const pollingService = global.pollingService || new PLCPollingService();
+
+if (process.env.NODE_ENV !== "production") {
+  global.pollingService = pollingService;
+}
