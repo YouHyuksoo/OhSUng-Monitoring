@@ -43,7 +43,7 @@ export function Header() {
    * 로그아웃 처리
    * - 폴링 중인 API 요청 취소
    * - localStorage 초기화
-   * - 모니터링 페이지로 리다이렉트
+   * - 현재 탭 닫기
    */
   const handleLogout = () => {
     // 모든 폴링 중인 요청 취소
@@ -58,11 +58,8 @@ export function Header() {
     // localStorage 초기화
     localStorage.clear();
 
-    // 모니터링 페이지로 이동
-    router.push("/monitoring");
-
-    // 다이얼로그 닫기
-    setShowLogoutDialog(false);
+    // 현재 탭 닫기
+    window.close();
   };
 
   return (
