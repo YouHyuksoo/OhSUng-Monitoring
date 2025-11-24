@@ -160,7 +160,8 @@ export function Header() {
               <span className="sr-only">Toggle theme</span>
             </button>
 
-            {/* 프로필 메뉴 */}
+            {/* 프로필 메뉴 - 인증되었을 때만 표시 */}
+            {isAuthenticated ? (
             <div className="relative" ref={profileMenuRef}>
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -203,6 +204,16 @@ export function Header() {
                 </div>
               )}
             </div>
+            ) : (
+              <button
+                onClick={() => router.push("/admin/login")}
+                className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors bg-amber-500 hover:bg-amber-600 text-white px-3 h-9"
+                title="로그인"
+              >
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline text-xs">로그인</span>
+              </button>
+            )}
           </div>
         )}
       </div>
