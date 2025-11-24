@@ -168,7 +168,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         const response = await fetch("/api/settings");
         if (response.ok) {
           const serverData = await response.json();
-          console.log("[SettingsContext] Loaded from server:", serverData);
+          if (process.env.NODE_ENV === "development") {
+            console.log("[SettingsContext] Loaded from server:", serverData);
+          }
 
           // chartConfigs가 비어있으면 기본값으로 보충
           // (서버에서 chartConfigs: []를 반환할 수 있으므로 명시적으로 처리)
@@ -180,8 +182,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
                 : defaultSettings.chartConfigs,
           };
 
-          console.log("[SettingsContext] Applied settings:", loadedSettings);
-          console.log("[SettingsContext] plcType:", loadedSettings.plcType);
+          if (process.env.NODE_ENV === "development") {
+            console.log("[SettingsContext] Applied settings. plcType:", loadedSettings.plcType);
+          }
 
           setSettings(loadedSettings);
           lastSavedSettingsRef.current = loadedSettings;
@@ -225,14 +228,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     // 500ms 후 저장 (디바운싱)
     saveTimeoutRef.current = setTimeout(async () => {
       try {
-        console.log("[SettingsContext] Saving settings to server...");
+        if (process.env.NODE_ENV === "development") {
+          console.log("[SettingsContext] Saving settings to server...");
+        }
         await fetch("/api/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(settings),
         });
         lastSavedSettingsRef.current = settings;
-        console.log("[SettingsContext] Settings saved successfully");
+        if (process.env.NODE_ENV === "development") {
+          console.log("[SettingsContext] Settings saved successfully");
+        }
       } catch (error) {
         console.error("Failed to save settings to server:", error);
       }

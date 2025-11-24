@@ -206,11 +206,15 @@ export function PLCConnectionProvider({
     isMountedRef.current = true;
 
     // 디버깅: 현재 설정 확인
-    console.log("[PLCConnectionContext] Current plcType:", settings.plcType);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[PLCConnectionContext] Current plcType:", settings.plcType);
+    }
 
     // 데모 모드인 경우 즉시 연결 완료 처리 (실제 연결 없음)
     if (settings.plcType === "demo") {
-      console.log("[PLCConnectionContext] Demo mode detected - setting connected status");
+      if (process.env.NODE_ENV === "development") {
+        console.log("[PLCConnectionContext] Demo mode detected - setting connected status");
+      }
       if (isMountedRef.current) {
         setConnectionStatus({
           state: "connected",
@@ -224,7 +228,9 @@ export function PLCConnectionProvider({
       };
     }
 
-    console.log("[PLCConnectionContext] Real PLC mode - attempting connection");
+    if (process.env.NODE_ENV === "development") {
+      console.log("[PLCConnectionContext] Real PLC mode - attempting connection");
+    }
 
     // 설정 검증 (실제 PLC 모드에서는 필수)
     if (
