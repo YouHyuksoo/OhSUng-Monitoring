@@ -21,6 +21,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSettings } from "@/lib/settings-context";
+import { useAuth } from "@/lib/auth-context";
 import {
   Activity,
   Settings,
@@ -71,6 +72,20 @@ interface DBStats {
 export default function AdminPage() {
   const router = useRouter();
   const { settings, isDemoMode, toggleDemoMode } = useSettings();
+  const { isAuthenticated, logout } = useAuth();
+
+  // 인증 확인 - 미인증 시 로그인 페이지로 리다이렉트
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/admin/login");
+    }
+  }, [isAuthenticated, router]);
+
+  // 로그아웃 핸들러
+  const handleLogout = () => {
+    logout();
+    router.push("/");
+  };
   const [pollingStatus, setPollingStatus] = useState<PollingStatus | null>(
     null
   );
@@ -234,6 +249,12 @@ export default function AdminPage() {
                 <h1 className="text-2xl font-bold text-white">관리자 대시보드</h1>
               </div>
             </div>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-500/20 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors text-sm font-medium"
+            >
+              로그아웃
+            </button>
           </div>
         </div>
       </div>
