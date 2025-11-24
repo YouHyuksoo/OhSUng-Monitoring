@@ -9,7 +9,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSettings, ChartConfig } from "@/lib/settings-context";
+import { useSettings } from "@/lib/useSettings";
+import { ChartConfig } from "@/lib/settings-store";
 import { useAuth } from "@/lib/auth-context";
 import { Toast, ToastType } from "@/components/ui/toast";
 

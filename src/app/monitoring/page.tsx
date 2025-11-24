@@ -16,7 +16,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { RealtimeChart } from "@/components/Dashboard/RealtimeChart";
 import { PowerUsageChart } from "@/components/Dashboard/PowerUsageChart";
-import { useSettings } from "@/lib/settings-context";
+import { useSettings } from "@/lib/useSettings";
 import { LogOut } from "lucide-react";
 
 export default function MonitoringPage() {

@@ -22,7 +22,7 @@ import {
   useCallback,
   useRef,
 } from "react";
-import { useSettings } from "./settings-context";
+import { useSettings } from "./useSettings";
 import { logger } from "@/lib/logger";
 
 /**
@@ -149,7 +149,7 @@ export function PLCConnectionProvider({
         }, retryInterval);
       }
     }
-  }, [settings.plcIp, settings.plcPort, settings.chartConfigs, settings.plcType]);
+  }, [settings.plcIp, settings.plcPort, settings.plcType]);
 
   /**
    * 외부(컴포넌트)에서 에러 보고 시 호출
@@ -256,12 +256,7 @@ export function PLCConnectionProvider({
       isMountedRef.current = false;
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
-  }, [
-    settings.plcIp,
-    settings.plcPort,
-    JSON.stringify(settings.chartConfigs),
-    settings.plcType,
-  ]);
+  }, [settings.plcIp, settings.plcPort, settings.chartConfigs, settings.plcType]);
 
   return (
     <PLCConnectionContext.Provider

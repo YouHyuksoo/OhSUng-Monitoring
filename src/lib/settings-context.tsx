@@ -163,6 +163,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
    * - chartConfigs가 비어있으면 기본값으로 보충
    */
   useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[SettingsContext] useEffect triggered - loading settings");
+    }
+
     const loadSettings = async () => {
       try {
         const response = await fetch("/api/settings");

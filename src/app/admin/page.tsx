@@ -20,7 +20,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSettings } from "@/lib/settings-context";
+import { useSettings } from "@/lib/useSettings";
 import { useAuth } from "@/lib/auth-context";
 import {
   Activity,

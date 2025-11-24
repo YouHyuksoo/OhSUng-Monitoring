@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { useTheme } from "@/components/theme-provider";
-import { useSettings } from "@/lib/settings-context";
+import { useSettings } from "@/lib/useSettings";
 import { useAuth } from "@/lib/auth-context";
 import { Moon, Sun, LogOut, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
