@@ -25,8 +25,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useTheme } from "@/components/theme-provider";
-import { usePLCConnection } from "@/lib/plc-connection-context";
-import { useSettings } from "@/lib/settings-context";
 import { logger } from "@/lib/logger";
 
 interface DataPoint {
@@ -35,29 +33,21 @@ interface DataPoint {
   set: number;
 }
 
-interface RealtimeChartProps {
-  address: string;
-  setAddress?: string;
-  title: string;
-  color?: string;
-  unit?: string;
-  minThreshold?: number;
-  maxThreshold?: number;
-  bordered?: boolean;
-  yMin?: number | "auto";
-  yMax?: number | "auto";
-  pollingInterval?: number;
-  plcIp?: string;
-  plcPort?: number;
-  chartConfigs?: any[]; // 모든 차트 설정 (중앙화 폴링용)
-}
-
 /**
- * 연결 상태를 나타내는 인터페이스
+ * 실시간 차트 Props
+ * DB에서 조회할 데이터 주소와 표시 설정
  */
-interface ConnectionStatus {
-  isConnected: boolean;
-  error?: string;
+interface RealtimeChartProps {
+  address: string; // 측정값 주소 (예: D4032)
+  setAddress?: string; // 설정값 주소 (온도 차트에만 사용)
+  title: string; // 차트 제목
+  color?: string; // 라인 색상
+  unit?: string; // 단위 (°C, W 등)
+  minThreshold?: number; // 최소 알람 임계값
+  maxThreshold?: number; // 최대 알람 임계값
+  bordered?: boolean; // 테두리 표시 여부
+  yMin?: number | "auto"; // Y축 최소값
+  yMax?: number | "auto"; // Y축 최대값
 }
 
 export function RealtimeChart({
@@ -71,27 +61,10 @@ export function RealtimeChart({
   bordered = false,
   yMin = "auto",
   yMax = "auto",
-  pollingInterval = 2000,
-  plcIp,
-  plcPort,
-  chartConfigs,
 }: RealtimeChartProps) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [isAlarm, setIsAlarm] = useState(false);
   const { theme } = useTheme();
-  const { connectionStatus, requestConnectionCheck } = usePLCConnection();
-  const { isDemoMode } = useSettings();
-
-  /**
-   * PLC 연결 상태 변화 감지
-   * - 연결 실패 시 데이터 초기화
-   */
-  useEffect(() => {
-    if (connectionStatus.state !== "connected") {
-      setData([]);
-      setIsAlarm(false);
-    }
-  }, [connectionStatus.state]);
 
   /**
    * DB에서 실시간 데이터 조회 함수
@@ -100,10 +73,6 @@ export function RealtimeChart({
    * - 모든 클라이언트가 같은 DB 데이터 조회
    */
   useEffect(() => {
-    // 연결되지 않은 상태면 조회하지 않음
-    if (connectionStatus.state !== "connected") {
-      return;
-    }
 
     let timeoutId: NodeJS.Timeout;
     const controller = new AbortController();
@@ -166,12 +135,9 @@ export function RealtimeChart({
         }
 
         logger.error(`DB 데이터 조회 실패: ${address}`, "RealtimeChart", error);
-        // ❌ 에러 보고 (연결 끊김 처리)
-        const errorMsg =
-          error instanceof Error ? error.message : "DB Query Failed";
-        requestConnectionCheck(errorMsg);
+        // 데이터 없을 때도 자동으로 재시도
       } finally {
-        // 연결 상태가 여전히 connected일 때만 다음 조회 예약
+        // 다음 조회 예약 (에러 발생해도 계속 시도)
         if (!controller.signal.aborted) {
           timeoutId = setTimeout(fetchDataFromDB, 10000); // 10초마다 갱신
         }
@@ -190,8 +156,6 @@ export function RealtimeChart({
     setAddress,
     minThreshold,
     maxThreshold,
-    connectionStatus.state,
-    requestConnectionCheck,
   ]);
 
   const currentValue = data.length > 0 ? data[data.length - 1].current : 0;

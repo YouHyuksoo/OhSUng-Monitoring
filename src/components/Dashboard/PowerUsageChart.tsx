@@ -211,7 +211,7 @@ export function PowerUsageChart() {
                     borderRadius: "6px",
                     fontSize: "12px",
                   }}
-                  formatter={(value) => `${(value / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} kWh`}
+                  formatter={(value: number) => `${(value / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} kWh`}
                 />
                 <Bar dataKey="value" fill="#ef4444" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -252,7 +252,7 @@ export function PowerUsageChart() {
                     borderRadius: "6px",
                     fontSize: "12px",
                   }}
-                  formatter={(value) => `${(value / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} kWh`}
+                  formatter={(value: number) => `${(value / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} kWh`}
                 />
                 <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
               </BarChart>

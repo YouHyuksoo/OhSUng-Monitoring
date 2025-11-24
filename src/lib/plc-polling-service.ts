@@ -154,12 +154,7 @@ class PLCPollingService {
           config.isDemoMode
         );
 
-        // 연결 확인
-        if (!plc.isConnected?.()) {
-          await plc.connect();
-        }
-
-        // 데이터 읽기
+        // 데이터 읽기 (연결은 read 메서드에서 자동 처리됨)
         const data = await plc.read(config.addresses);
 
         // 캐시 업데이트
