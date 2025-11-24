@@ -42,7 +42,7 @@ export default function SettingsPage() {
     setLocalSettings((prev) => {
       const newConfigs = [...prev.chartConfigs];
       const updated = { ...newConfigs[index] };
-      if (field === "name" || field === "address" || field === "setAddress") {
+      if (field === "name" || field === "address" || field === "setAddress" || field === "accumulationAddress") {
         updated[field] = value;
       }
       newConfigs[index] = updated;
@@ -419,7 +419,7 @@ export default function SettingsPage() {
                     return (
                       <div
                         key={config.id}
-                        className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-muted/30 rounded"
+                        className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-muted/30 rounded"
                       >
                         <div>
                           <label className="text-xs font-medium text-muted-foreground">
@@ -441,7 +441,7 @@ export default function SettingsPage() {
                         </div>
                         <div>
                           <label className="text-xs font-medium text-muted-foreground">
-                            측정값 주소
+                            순방향 유효전력량 주소
                           </label>
                           <input
                             type="text"
@@ -457,8 +457,26 @@ export default function SettingsPage() {
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                         </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            누적 측정값 주소
+                          </label>
+                          <input
+                            type="text"
+                            value={config.accumulationAddress || ""}
+                            onChange={(e) =>
+                              handleChartConfigChange(
+                                actualIndex,
+                                "accumulationAddress",
+                                e.target.value
+                              )
+                            }
+                            placeholder="예: D6100"
+                            className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
                         <div className="text-xs text-muted-foreground flex items-center">
-                          <span className="flex-1">현재 값이 표시됩니다</span>
+                          <span className="flex-1">차트에서 표시됨</span>
                         </div>
                       </div>
                     );
@@ -639,10 +657,16 @@ export default function SettingsPage() {
               </p>
               <ul className="list-disc list-inside text-blue-700 dark:text-blue-400 space-y-1">
                 <li>
-                  <strong>측정값 주소</strong>: PLC에서 현재 센서 값을 읽는 주소
+                  <strong>순방향 유효전력량 주소</strong> (전력): 현재 전력 사용량을 읽는 주소 (예: D4032)
                 </li>
                 <li>
-                  <strong>설정값 주소</strong>: PLC에 목표 설정값이 저장된 주소
+                  <strong>누적 측정값 주소</strong> (전력): 일일 누적 전력량을 폴링하는 주소 (예: D6100)
+                </li>
+                <li>
+                  <strong>현재값 주소</strong> (온도): PLC에서 현재 센서 값을 읽는 주소
+                </li>
+                <li>
+                  <strong>설정값 주소</strong> (온도): PLC에 목표 설정값이 저장된 주소
                 </li>
                 <li>
                   주소 형식:{" "}

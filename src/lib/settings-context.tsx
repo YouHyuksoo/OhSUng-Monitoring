@@ -2,12 +2,19 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
+/**
+ * 차트 설정 인터페이스
+ * - address: 현재값 또는 측정값 주소
+ * - setAddress: 온도 설정값 주소 (온도 차트에만 사용)
+ * - accumulationAddress: 누적 측정값 주소 (전력 차트에만 사용)
+ */
 export interface ChartConfig {
   id: string;
   name: string;
   type: "power" | "sujul" | "yeolpung";
   address: string;
   setAddress?: string;
+  accumulationAddress?: string;
 }
 
 export interface Settings {
@@ -45,6 +52,7 @@ const defaultSettings: Settings = {
       name: "순방향 유효전력량",
       type: "power",
       address: "D4032",
+      accumulationAddress: "D6100",
     },
     {
       id: "sujul-1",

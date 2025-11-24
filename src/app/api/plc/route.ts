@@ -77,6 +77,9 @@ function getPlc(
 
 /**
  * 설정값에서 모든 PLC 주소 추출
+ * - address: 현재값 또는 측정값 주소
+ * - setAddress: 온도 설정값 주소
+ * - accumulationAddress: 누적 측정값 주소 (에너지 차트용)
  */
 function extractAllAddressesFromSettings(chartConfigs: any[]): string[] {
   const addresses = new Set<string>();
@@ -85,6 +88,7 @@ function extractAllAddressesFromSettings(chartConfigs: any[]): string[] {
     chartConfigs.forEach((config) => {
       if (config.address) addresses.add(config.address);
       if (config.setAddress) addresses.add(config.setAddress);
+      if (config.accumulationAddress) addresses.add(config.accumulationAddress);
     });
   }
 
