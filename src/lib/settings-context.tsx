@@ -17,10 +17,33 @@ export interface ChartConfig {
   accumulationAddress?: string;
 }
 
+/**
+ * Modbus 주소 매핑 인터페이스
+ * - dAddressBase: D 주소의 기본값 (예: D0000)
+ * - modbusOffset: Modbus 오프셋 (예: 0)
+ * 계산: D주소(십진수) - dAddressBase(십진수) + modbusOffset = Modbus 오프셋
+ * 예: D400을 읽으려면: 400 - 0 + 0 = 400
+ */
+export interface ModbusAddressMapping {
+  dAddressBase: number;  // D 주소 기본값 (기본: 0)
+  modbusOffset: number;  // Modbus 오프셋 추가값 (기본: 0)
+}
+
 export interface Settings {
   appTitle: string;
   plcIp: string;
   plcPort: number;
+  /**
+   * PLC 통신 프로토콜 타입
+   * - "mc": Mitsubishi MC Protocol (mcprotocol)
+   * - "modbus": LS ELECTRIC XGT Modbus TCP (modbus-serial)
+   * - "demo": Mock PLC (테스트용 시뮬레이션)
+   */
+  plcType: "mc" | "modbus" | "demo";
+  /**
+   * Modbus TCP 사용 시 D 주소 → Modbus 오프셋 변환 규칙
+   */
+  modbusAddressMapping?: ModbusAddressMapping;
   pollingInterval: number;
   dataRetention: number;
   sujulTempMin: number;
@@ -37,6 +60,11 @@ const defaultSettings: Settings = {
   appTitle: "PLC 모니터링",
   plcIp: "127.0.0.1",
   plcPort: 502,
+  plcType: "demo",
+  modbusAddressMapping: {
+    dAddressBase: 0,
+    modbusOffset: 0,
+  },
   pollingInterval: 2000,
   dataRetention: 20,
   sujulTempMin: 30,
@@ -116,8 +144,6 @@ const defaultSettings: Settings = {
 type SettingsContextType = {
   settings: Settings;
   updateSettings: (newSettings: Partial<Settings>) => void;
-  isDemoMode: boolean;
-  toggleDemoMode: () => void;
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -127,30 +153,40 @@ const SettingsContext = createContext<SettingsContextType | undefined>(
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [isDemoMode, setIsDemoMode] = useState(false);
-
-  const toggleDemoMode = () => setIsDemoMode((prev) => !prev);
 
   /**
    * 서버에서 설정을 로드합니다.
-   * - 서버 데이터가 기본값과 병합됨
-   * - chartConfigs가 비어있으면 기본값 사용
+   * - 서버에서 받은 데이터를 그대로 사용 (서버가 진실의 원천)
+   * - 서버가 비정상 응답 시에만 기본값 사용
+   * - chartConfigs가 비어있으면 기본값으로 보충
    */
   useEffect(() => {
     const loadSettings = async () => {
       try {
         const response = await fetch("/api/settings");
         if (response.ok) {
-          const data = await response.json();
-          // chartConfigs가 비어있으면 기본값 사용 (빈 배열 방지)
-          const mergedSettings = { ...defaultSettings, ...data };
-          if (!mergedSettings.chartConfigs || mergedSettings.chartConfigs.length === 0) {
-            mergedSettings.chartConfigs = defaultSettings.chartConfigs;
-          }
-          setSettings(mergedSettings);
+          const serverData = await response.json();
+          console.log("[SettingsContext] Loaded from server:", serverData);
+
+          // chartConfigs가 비어있으면 기본값으로 보충
+          // (서버에서 chartConfigs: []를 반환할 수 있으므로 명시적으로 처리)
+          const loadedSettings: Settings = {
+            ...serverData,
+            chartConfigs:
+              serverData.chartConfigs && serverData.chartConfigs.length > 0
+                ? serverData.chartConfigs
+                : defaultSettings.chartConfigs,
+          };
+
+          console.log("[SettingsContext] Applied settings:", loadedSettings);
+          console.log("[SettingsContext] plcType:", loadedSettings.plcType);
+
+          setSettings(loadedSettings);
         }
       } catch (error) {
         console.error("Failed to load settings from server:", error);
+        // 서버 통신 실패 시에만 클라이언트 기본값 사용
+        setSettings(defaultSettings);
       } finally {
         setIsLoaded(true);
       }
@@ -184,7 +220,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SettingsContext.Provider
-      value={{ settings, updateSettings, isDemoMode, toggleDemoMode }}
+      value={{ settings, updateSettings }}
     >
       {children}
     </SettingsContext.Provider>

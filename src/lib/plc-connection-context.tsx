@@ -67,7 +67,7 @@ export function PLCConnectionProvider({
       error: "PLC 연결 중...",
     }
   );
-  const { settings, isDemoMode } = useSettings();
+  const { settings } = useSettings();
 
   // 재시도 타이머 ref
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -84,15 +84,13 @@ export function PLCConnectionProvider({
 
     try {
       // IP/Port 재검증 (데모 모드일 때는 패스)
-      if (!isDemoMode && (!settings.plcIp || !settings.plcPort)) {
+      if (settings.plcType !== "demo" && (!settings.plcIp || !settings.plcPort)) {
         throw new Error("PLC IP 또는 Port가 설정되지 않음");
       }
 
       // 연결 확인 전용 엔드포인트 호출
-      let url = `/api/plc?check=true&ip=${settings.plcIp}&port=${settings.plcPort}`;
-      if (isDemoMode) {
-        url += "&demo=true";
-      }
+      // 데모 모드: IP/Port는 의미 없지만, API는 필요로 함
+      const url = `/api/plc?check=true&ip=${settings.plcIp || "demo"}&port=${settings.plcPort || 502}&plcType=${settings.plcType}`;
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5초 타임아웃
@@ -143,14 +141,15 @@ export function PLCConnectionProvider({
           lastChecked: new Date(),
         });
 
-        // 2초 후 재시도 (기존 타이머 제거 후 설정)
+        // 재시도 간격 (데모 모드는 더 길게)
+        const retryInterval = settings.plcType === "demo" ? 10000 : 5000;
         if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
         retryTimerRef.current = setTimeout(() => {
           checkConnection();
-        }, 5000);
+        }, retryInterval);
       }
     }
-  }, [settings.plcIp, settings.plcPort, settings.chartConfigs, isDemoMode]);
+  }, [settings.plcIp, settings.plcPort, settings.chartConfigs, settings.plcType, settings.plcType === "demo"]);
 
   /**
    * 외부(컴포넌트)에서 에러 보고 시 호출
@@ -200,28 +199,50 @@ export function PLCConnectionProvider({
 
   /**
    * 초기 진입 및 설정 변경 시 연결 시도
-   * - 데모 모드: chartConfigs 검증 스킵
-   * - 실제 모드: 모든 설정 필수 검증
+   * - 데모 모드: 즉시 connected 상태로 설정 (연결 체크 불필요)
+   * - 실제 모드: 모든 설정 필수 검증 후 연결 시도
    */
   useEffect(() => {
     isMountedRef.current = true;
 
-    // 설정 검증 (데모 모드에서는 차트 설정 불필요)
-    if (!isDemoMode) {
-      if (
-        !settings.plcIp ||
-        !settings.plcPort ||
-        !settings.chartConfigs?.length
-      ) {
+    // 디버깅: 현재 설정 확인
+    console.log("[PLCConnectionContext] Current plcType:", settings.plcType);
+
+    // 데모 모드인 경우 즉시 연결 완료 처리 (실제 연결 없음)
+    if (settings.plcType === "demo") {
+      console.log("[PLCConnectionContext] Demo mode detected - setting connected status");
+      if (isMountedRef.current) {
         setConnectionStatus({
-          state: "disconnected",
-          error: "설정이 불완전합니다. 설정 페이지를 확인하세요.",
+          state: "connected",
+          lastChecked: new Date(),
+          error: undefined,
         });
-        return;
       }
+      return () => {
+        isMountedRef.current = false;
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      };
     }
 
-    // 🚀 즉시 연결 시도
+    console.log("[PLCConnectionContext] Real PLC mode - attempting connection");
+
+    // 설정 검증 (실제 PLC 모드에서는 필수)
+    if (
+      !settings.plcIp ||
+      !settings.plcPort ||
+      !settings.chartConfigs?.length
+    ) {
+      setConnectionStatus({
+        state: "disconnected",
+        error: "설정이 불완전합니다. 설정 페이지를 확인하세요.",
+      });
+      return () => {
+        isMountedRef.current = false;
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      };
+    }
+
+    // 🚀 실제 PLC 연결 시도
     checkConnection();
 
     // 정리 함수
@@ -230,11 +251,10 @@ export function PLCConnectionProvider({
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
   }, [
-    checkConnection,
     settings.plcIp,
     settings.plcPort,
     JSON.stringify(settings.chartConfigs),
-    isDemoMode,
+    settings.plcType,
   ]);
 
   return (

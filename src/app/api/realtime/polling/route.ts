@@ -30,7 +30,7 @@ function extractAllAddresses(chartConfigs: any[]): string[] {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { ip, port, interval = 2000, chartConfigs, demo = false } = body;
+    const { ip, port, interval = 2000, chartConfigs, plcType } = body;
 
     if (!ip || !port) {
       return NextResponse.json(
@@ -49,8 +49,17 @@ export async function POST(request: Request) {
       );
     }
 
+    // plcType이 "demo"인 경우 데모 모드로 실행
+    const isDemoMode = plcType === "demo";
+
     // 실시간 데이터 폴링 시작
-    realtimeDataService.startPolling(addresses, ip, parseInt(port), interval, demo === true);
+    realtimeDataService.startPolling(
+      addresses,
+      ip,
+      parseInt(port),
+      interval,
+      isDemoMode
+    );
 
     return NextResponse.json({
       success: true,
@@ -65,7 +74,8 @@ export async function POST(request: Request) {
     console.error("[API] Failed to start realtime polling:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to start polling",
+        error:
+          error instanceof Error ? error.message : "Failed to start polling",
       },
       { status: 500 }
     );

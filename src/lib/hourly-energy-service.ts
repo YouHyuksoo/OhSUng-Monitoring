@@ -58,7 +58,10 @@ class HourlyEnergyService {
 
       console.log("[HourlyEnergyService] Database initialized");
     } catch (error) {
-      console.error("[HourlyEnergyService] Database initialization error:", error);
+      console.error(
+        "[HourlyEnergyService] Database initialization error:",
+        error
+      );
     }
   }
 
@@ -118,9 +121,48 @@ class HourlyEnergyService {
   }
 
   /**
+   * 테스트 데이터 삽입 (개발/데모용)
+   * 각 시간별로 랜덤 누적 에너지 값 생성
+   */
+  insertTestData(date: string): void {
+    if (!this.db) {
+      this.initializeDatabase();
+    }
+
+    try {
+      const stmt = this.db!.prepare(`
+        INSERT INTO hourly_energy (date, hour, value, timestamp)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(date, hour) DO UPDATE SET value = ?, timestamp = ?
+      `);
+
+      // 1~24시간대별 랜덤 값 생성
+      for (let hour = 1; hour <= 24; hour++) {
+        const value = Math.round(500 + Math.random() * 1000); // 500~1500 Wh
+        const timestamp = Date.now();
+        stmt.run(date, hour, value, timestamp, value, timestamp);
+      }
+
+      console.log(`[HourlyEnergyService] Test data inserted for ${date}`);
+
+      // 현재 날짜면 메모리에 로드
+      const today = this.getTodayString();
+      if (date === today) {
+        this.loadTodayData();
+      }
+    } catch (error) {
+      console.error("[HourlyEnergyService] Failed to insert test data:", error);
+    }
+  }
+
+  /**
    * 현재 데이터 조회
    */
   getCurrentData(): HourlyEnergyData | null {
+    // 메모리에 없으면 DB에서 로드
+    if (!this.currentData) {
+      this.loadTodayData();
+    }
     return this.currentData;
   }
 
@@ -128,7 +170,15 @@ class HourlyEnergyService {
    * 특정 날짜 데이터 조회
    */
   getDayData(date: string): HourlyEnergyData | null {
-    if (!this.db) return null;
+    // DB가 없으면 초기화
+    if (!this.db) {
+      this.initializeDatabase();
+      // 초기화 후에도 DB가 없으면 null 반환
+      if (!this.db) {
+        console.error("[HourlyEnergyService] Database not available");
+        return null;
+      }
+    }
 
     try {
       const stmt = this.db.prepare(`

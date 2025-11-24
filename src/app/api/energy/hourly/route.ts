@@ -24,10 +24,17 @@ export async function GET(request: Request) {
     }
 
     if (!data) {
-      return NextResponse.json(
-        { error: "No data available" },
-        { status: 404 }
-      );
+      // 데이터가 없으면 빈 데이터 반환 (에러가 아님)
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(
+        today.getMonth() + 1
+      ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+      return NextResponse.json({
+        date: date || todayStr,
+        hours: {},
+        lastUpdate: Date.now(),
+      });
     }
 
     return NextResponse.json(data);
@@ -43,7 +50,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { ip, port, demo } = body;
+    const { ip, port, plcType } = body;
 
     if (!ip || !port) {
       return NextResponse.json(
@@ -52,14 +59,17 @@ export async function POST(request: Request) {
       );
     }
 
+    // plcType이 "demo"인 경우 데모 모드로 실행
+    const isDemoMode = plcType === "demo";
+
     // 폴링 시작
-    hourlyEnergyService.startHourlyPolling(ip, parseInt(port), demo === true);
+    hourlyEnergyService.startHourlyPolling(ip, parseInt(port), isDemoMode);
 
     return NextResponse.json({
       success: true,
       message: "Hourly polling started",
       ip,
-      port
+      port,
     });
   } catch (error) {
     console.error("Failed to start hourly polling:", error);

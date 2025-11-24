@@ -14,14 +14,20 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Activity, Settings, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 export default function Home() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    // 이미 로그인되어 있으면 관리자 페이지로 직접 이동
+    if (isAuthenticated) {
+      router.push("/admin");
+    }
+  }, [isAuthenticated, router]);
 
   if (!mounted) {
     return null;
@@ -74,7 +80,7 @@ export default function Home() {
 
           {/* 관리자 메뉴 카드 */}
           <button
-            onClick={() => handleNavigate("/admin")}
+            onClick={() => handleNavigate("/admin/login")}
             className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-900/40 to-blue-900/20 border border-blue-500/30 p-8 hover:border-blue-500/60 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/0 group-hover:from-blue-500/10 group-hover:to-blue-500/5 transition-all duration-300" />

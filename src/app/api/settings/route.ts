@@ -21,13 +21,27 @@ const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
 
 /**
  * 기본 설정값
+ * 주의: client의 defaultSettings과 동기화되어야 함
  */
 const DEFAULT_SETTINGS = {
+  appTitle: "PLC 모니터링",
   plcIp: "",
   plcPort: 5000,
+  plcType: "demo",
+  modbusAddressMapping: {
+    dAddressBase: 0,
+    modbusOffset: 0,
+  },
   pollingInterval: 2000,
-  chartConfigs: [],
+  dataRetention: 20,
+  sujulTempMin: 30,
+  sujulTempMax: 50,
+  yeolpungTempMin: 40,
+  yeolpungTempMax: 60,
+  autoSave: true,
+  logRetention: 30,
   startFullScreen: true,
+  chartConfigs: [],
 };
 
 /**

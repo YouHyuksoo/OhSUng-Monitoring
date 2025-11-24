@@ -17,13 +17,15 @@ import { useRouter } from "next/navigation";
 import { RealtimeChart } from "@/components/Dashboard/RealtimeChart";
 import { PowerUsageChart } from "@/components/Dashboard/PowerUsageChart";
 import { useSettings } from "@/lib/settings-context";
-import { ArrowLeft } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 export default function MonitoringPage() {
   const router = useRouter();
   const { settings } = useSettings();
 
-  // 자동 전체 화면 처리
+  /**
+   * 자동 전체 화면 처리
+   */
   useEffect(() => {
     if (settings.startFullScreen) {
       const enterFullScreen = async () => {
@@ -40,6 +42,22 @@ export default function MonitoringPage() {
     }
   }, [settings.startFullScreen]);
 
+  /**
+   * 모니터링 페이지 나가기 핸들러
+   * - 전체 화면 해제
+   * - 랭딩 페이지로 이동
+   */
+  const handleExit = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.log("Exit fullscreen error:", err);
+    }
+    router.push("/");
+  };
+
   // 알람 임계값 설정 (설정값 사용)
   const SUJUL_TEMP_MIN = settings.sujulTempMin;
   const SUJUL_TEMP_MAX = settings.sujulTempMax;
@@ -55,27 +73,32 @@ export default function MonitoringPage() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-background">
-      {/* 헤더 */}
+      {/* 헤더 - 모니터링 독립 페이지용 */}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.push("/")}
-                className="p-2 hover:bg-muted rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-muted-foreground" />
-              </button>
               <h1 className="text-2xl font-bold text-foreground">
                 {settings.appTitle}
               </h1>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-              </span>
-              <span className="text-xs text-muted-foreground">Live Data</span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <span className="text-xs text-muted-foreground">Live Data</span>
+              </div>
+              {/* 나가기 버튼 */}
+              <button
+                onClick={handleExit}
+                className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors bg-amber-500 hover:bg-amber-600 text-white px-3 h-9"
+                title="모니터링 나가기"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="text-xs">나가기</span>
+              </button>
             </div>
           </div>
         </div>

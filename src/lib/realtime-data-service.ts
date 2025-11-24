@@ -208,6 +208,32 @@ class RealtimeDataService {
   }
 
   /**
+   * 가상 데이터를 DB 및 메모리 캐시에 저장 (테스트용)
+   * @param points 저장할 데이터 포인트 배열
+   */
+  insertTestData(points: RealtimeDataPoint[]): void {
+    if (!this.db) {
+      this.initializeDatabase();
+    }
+
+    try {
+      const stmt = this.db!.prepare(`
+        INSERT INTO realtime_data (timestamp, address, value)
+        VALUES (?, ?, ?)
+      `);
+
+      points.forEach((point) => {
+        stmt.run(point.timestamp, point.address, point.value);
+        this.updateMemoryCache(point.address, point.value, point.timestamp);
+      });
+
+      console.log(`[RealtimeDataService] Inserted ${points.length} test data points`);
+    } catch (error) {
+      console.error("[RealtimeDataService] Failed to insert test data:", error);
+    }
+  }
+
+  /**
    * 특정 주소의 최신값 조회
    */
   getLatestValue(address: string): number | null {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { plc as mockPlc } from "@/lib/mock-plc";
 import { McPLC } from "@/lib/mc-plc";
+import { XgtModbusPLC } from "@/lib/xgt-modbus-plc";
 import { PLCConnector } from "@/lib/plc-connector";
 import { pollingService } from "@/lib/plc-polling-service";
 
@@ -9,9 +10,10 @@ import { pollingService } from "@/lib/plc-polling-service";
  * - 동일한 IP:Port에 대한 연결 재사용
  * - 타임아웃 기반 연결 정리
  * - 동시 요청 제어 (Mutex 패턴)
+ * - Mitsubishi MC와 LS Modbus TCP 모두 지원
  */
 interface CachedConnection {
-  plc: McPLC;
+  plc: PLCConnector;
   lastUsed: number;
   isReading: boolean;
 }
@@ -43,12 +45,27 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([promise, timeoutPromise]);
 }
 
+/**
+ * PLC 인스턴스를 가져옵니다.
+ * - plcType에 따라 적절한 PLC 드라이버 생성
+ * - "demo": MockPLC 반환
+ * - "modbus": LS ELECTRIC XGT Modbus TCP
+ * - "mc" (기본값): Mitsubishi MC Protocol
+ * - 동일한 IP:Port는 연결 캐시 재사용
+ *
+ * @param ip - PLC IP 주소
+ * @param port - PLC 포트
+ * @param plcType - "mc" (Mitsubishi) | "modbus" (LS Modbus TCP) | "demo" (Mock)
+ * @param addressMapping - Modbus 주소 매핑 설정 (plcType=modbus일 때만 사용)
+ */
 function getPlc(
   ip?: string | null,
   port?: string | null,
-  demo?: boolean
+  plcType?: string,
+  addressMapping?: any
 ): PLCConnector {
-  if (demo) {
+  // Demo 모드는 항상 MockPLC 반환 (IP/Port 불필요)
+  if (plcType === "demo") {
     return mockPlc;
   }
 
@@ -60,7 +77,21 @@ function getPlc(
   let cached = connections.get(key);
 
   if (!cached) {
-    const newPlc = new McPLC(ip, parseInt(port));
+    let newPlc: PLCConnector;
+
+    // plcType에 따라 적절한 PLC 드라이버 생성
+    if (plcType === "modbus") {
+      // Modbus 주소 매핑 설정 (기본값: 그대로 사용)
+      const mapping = addressMapping || {
+        dAddressBase: 0,
+        modbusOffset: 0,
+      };
+      newPlc = new XgtModbusPLC(ip, parseInt(port), 1, mapping);
+    } else {
+      // 기본값: Mitsubishi MC Protocol
+      newPlc = new McPLC(ip, parseInt(port));
+    }
+
     cached = {
       plc: newPlc,
       lastUsed: Date.now(),
@@ -100,21 +131,33 @@ export async function GET(request: Request) {
   const addresses = searchParams.get("addresses")?.split(",") || [];
   const ip = searchParams.get("ip");
   const port = searchParams.get("port");
+  const plcType = searchParams.get("plcType") || "mc";
+  const addressMappingJson = searchParams.get("addressMapping");
   const check = searchParams.get("check") === "true";
-  const demo = searchParams.get("demo") === "true";
   const pollingInterval = searchParams.get("pollingInterval");
   const chartConfigsJson = searchParams.get("chartConfigs");
 
+  // Modbus 주소 매핑 파싱
+  let addressMapping: any = undefined;
+  if (plcType === "modbus" && addressMappingJson) {
+    try {
+      addressMapping = JSON.parse(decodeURIComponent(addressMappingJson));
+    } catch (e) {
+      console.warn("Failed to parse addressMapping:", e);
+    }
+  }
+
   // 연결 확인 모드
   if (check) {
-    if (!demo && (!ip || !port)) {
+    // Demo 모드는 IP/Port 불필요, 나머지는 필수
+    if (plcType !== "demo" && (!ip || !port)) {
       return NextResponse.json(
         { error: "IP and Port required for check" },
         { status: 400 }
       );
     }
     try {
-      const plc = getPlc(ip, port, demo);
+      const plc = getPlc(ip, port, plcType, addressMapping);
       // 연결 시도 (이미 연결되어 있으면 즉시 리턴됨)
       await withTimeout(plc.connect(), 5000);
       return NextResponse.json({ connected: true });
@@ -149,9 +192,36 @@ export async function GET(request: Request) {
       );
     }
 
-    // 백그라운드 폴링 등록 (처음 요청 시에만)
+    // Demo 모드도 백그라운드 폴링 등록 (DB에 저장)
+    if (plcType === "demo") {
+      pollingService.registerPolling({
+        ip: "demo",
+        port: portNum,
+        addresses: pollingAddresses,
+        interval,
+        isDemoMode: true,
+      });
+
+      // 캐시된 데이터 반환
+      const cached = pollingService.getCachedData("demo", portNum);
+      if (cached) {
+        return NextResponse.json({
+          ...cached.data,
+          _lastUpdate: cached.lastUpdate,
+          _error: cached.error,
+        });
+      }
+
+      // 데이터가 아직 없으면 대기
+      return NextResponse.json(
+        { error: "Demo polling in progress, please retry" },
+        { status: 202 }
+      );
+    }
+
+    // 실제 PLC 백그라운드 폴링 등록 (처음 요청 시에만)
     // 모든 클라이언트가 같은 주소 폴링
-    if (ip && !demo) {
+    if (ip) {
       pollingService.registerPolling({
         ip,
         port: portNum,
@@ -171,13 +241,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // Demo 모드는 직접 폴링 (캐시 없음)
-    if (demo) {
-      const plc = getPlc(ip, port, demo);
-      const data = await withTimeout(plc.read(pollingAddresses), REQUEST_TIMEOUT);
-      return NextResponse.json(data);
-    }
-
     // 데이터가 아직 없으면 대기
     return NextResponse.json(
       { error: "Polling in progress, please retry" },
@@ -193,14 +256,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { address, value, ip, port } = body;
+  const { address, value, ip, port, plcType, addressMapping } = body;
 
   if (!address || value === undefined) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
   try {
-    const plc = getPlc(ip, port, false);
+    const plc = getPlc(ip, port, plcType, addressMapping);
     const key = `${ip}:${port}`;
     const cached = connections.get(key);
 

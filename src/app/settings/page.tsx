@@ -45,6 +45,29 @@ export default function SettingsPage() {
     });
   };
 
+  /**
+   * Modbus 주소 매핑 필드 변경 처리
+   * @param field - dAddressBase 또는 modbusOffset
+   * @param value - 변경할 값
+   */
+  const handleModbusAddressMappingChange = (
+    field: "dAddressBase" | "modbusOffset",
+    value: number
+  ) => {
+    setLocalSettings((prev) => {
+      const next = {
+        ...prev,
+        modbusAddressMapping: {
+          dAddressBase: prev.modbusAddressMapping?.dAddressBase ?? 0,
+          modbusOffset: prev.modbusAddressMapping?.modbusOffset ?? 0,
+          [field]: value,
+        },
+      };
+      setIsModified(true);
+      return next;
+    });
+  };
+
   const handleChartConfigChange = (
     index: number,
     field: keyof ChartConfig,
@@ -78,11 +101,22 @@ export default function SettingsPage() {
       message: "설정이 성공적으로 저장되었습니다.",
     });
   };
+  /**
+   * PLC 연결 테스트 - Modbus 프로토콜일 때 addressMapping 포함
+   */
   const handleTestConnection = async () => {
     try {
-      const res = await fetch(
-        `/api/plc?check=true&ip=${localSettings.plcIp}&port=${localSettings.plcPort}`
-      );
+      let url = `/api/plc?check=true&ip=${localSettings.plcIp}&port=${localSettings.plcPort}&plcType=${localSettings.plcType}`;
+
+      // Modbus 프로토콜일 때 addressMapping 파라미터 추가
+      if (localSettings.plcType === "modbus" && localSettings.modbusAddressMapping) {
+        const addressMappingJson = encodeURIComponent(
+          JSON.stringify(localSettings.modbusAddressMapping)
+        );
+        url += `&addressMapping=${addressMappingJson}`;
+      }
+
+      const res = await fetch(url);
       const data = await res.json();
       if (data.connected) {
         setToast({
@@ -185,6 +219,99 @@ export default function SettingsPage() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
+            <div>
+              <label
+                htmlFor="plcType"
+                className="text-sm font-medium block mb-1.5"
+              >
+                PLC 프로토콜 타입
+              </label>
+              <select
+                id="plcType"
+                value={localSettings.plcType}
+                onChange={(e) => handleChange("plcType", e.target.value as "mc" | "modbus" | "demo")}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="mc">Mitsubishi MC Protocol</option>
+                <option value="modbus">LS ELECTRIC XGT Modbus TCP</option>
+                <option value="demo">Demo Mode (Mock PLC)</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                현재: {
+                  localSettings.plcType === "mc" ? "미쯔비시 MC" :
+                  localSettings.plcType === "modbus" ? "LS Modbus TCP" :
+                  "데모 모드"
+                }
+              </p>
+            </div>
+
+            {/* Modbus 주소 매핑 설정 (Modbus 프로토콜 선택 시만 표시) */}
+            {localSettings.plcType === "modbus" && (
+              <>
+                <div>
+                  <label
+                    htmlFor="dAddressBase"
+                    className="text-sm font-medium block mb-1.5"
+                  >
+                    D 주소 기본값 (Base)
+                  </label>
+                  <input
+                    type="number"
+                    id="dAddressBase"
+                    value={localSettings.modbusAddressMapping?.dAddressBase || 0}
+                    onChange={(e) =>
+                      handleModbusAddressMappingChange(
+                        "dAddressBase",
+                        parseInt(e.target.value)
+                      )
+                    }
+                    placeholder="0"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    D 주소 변환의 기준값 (예: D400의 기본값이 0이면 400으로 계산)
+                  </p>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="modbusOffset"
+                    className="text-sm font-medium block mb-1.5"
+                  >
+                    Modbus 오프셋
+                  </label>
+                  <input
+                    type="number"
+                    id="modbusOffset"
+                    value={localSettings.modbusAddressMapping?.modbusOffset || 0}
+                    onChange={(e) =>
+                      handleModbusAddressMappingChange(
+                        "modbusOffset",
+                        parseInt(e.target.value)
+                      )
+                    }
+                    placeholder="0"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Modbus 레지스터에 추가할 오프셋값
+                  </p>
+                </div>
+
+                {/* 주소 매핑 계산 공식 설명 */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded border border-blue-200 dark:border-blue-800">
+                  <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-2">
+                    📐 주소 변환 공식
+                  </p>
+                  <code className="text-xs text-blue-800 dark:text-blue-300 block bg-blue-100 dark:bg-blue-900/40 p-2 rounded mb-2">
+                    Modbus Offset = (D주소값 - dAddressBase) + modbusOffset
+                  </code>
+                  <p className="text-xs text-blue-800 dark:text-blue-300">
+                    예: D400을 읽을 때, dAddressBase=0, modbusOffset=0이면 → (400 - 0) + 0 = 400
+                  </p>
+                </div>
+              </>
+            )}
           </div>
           <div className="pt-2">
             <button

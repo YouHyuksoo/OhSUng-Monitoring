@@ -40,59 +40,77 @@ export async function GET(request: Request) {
       try {
         const db = new Database(dbPath, { readonly: true });
 
-        // realtime_data 테이블 통계
-        const realtimeStmt = db.prepare(
-          "SELECT COUNT(*) as count FROM realtime_data"
-        );
-        const realtimeResult = realtimeStmt.get() as { count: number };
-        realtimeCount = realtimeResult?.count || 0;
+        /**
+         * realtime_data 테이블 통계
+         * 테이블이 없으면 에러를 잡아서 0으로 처리
+         */
+        try {
+          const realtimeStmt = db.prepare(
+            "SELECT COUNT(*) as count FROM realtime_data"
+          );
+          const realtimeResult = realtimeStmt.get() as { count: number };
+          realtimeCount = realtimeResult?.count || 0;
 
-        // 가장 오래된/최신 데이터 시간
-        const realtimeTimeStmt = db.prepare(
-          `SELECT
-            MIN(timestamp) as oldest,
-            MAX(timestamp) as newest
-           FROM realtime_data`
-        );
-        const realtimeTimeResult = realtimeTimeStmt.get() as {
-          oldest: number | null;
-          newest: number | null;
-        };
-        if (realtimeTimeResult?.oldest) {
-          oldestRealtimeData = new Date(realtimeTimeResult.oldest).toISOString();
-        }
-        if (realtimeTimeResult?.newest) {
-          newestRealtimeData = new Date(realtimeTimeResult.newest).toISOString();
+          // 가장 오래된/최신 데이터 시간
+          const realtimeTimeStmt = db.prepare(
+            `SELECT
+              MIN(timestamp) as oldest,
+              MAX(timestamp) as newest
+             FROM realtime_data`
+          );
+          const realtimeTimeResult = realtimeTimeStmt.get() as {
+            oldest: number | null;
+            newest: number | null;
+          };
+
+          if (realtimeTimeResult?.oldest && realtimeTimeResult.oldest > 0) {
+            oldestRealtimeData = new Date(realtimeTimeResult.oldest).toISOString();
+          }
+          if (realtimeTimeResult?.newest && realtimeTimeResult.newest > 0) {
+            newestRealtimeData = new Date(realtimeTimeResult.newest).toISOString();
+          }
+        } catch (e) {
+          console.debug("realtime_data table not found or error querying:", e);
+          realtimeCount = 0;
         }
 
-        // hourly_energy 테이블 통계
-        const hourlyStmt = db.prepare(
-          "SELECT COUNT(*) as count FROM hourly_energy"
-        );
-        const hourlyResult = hourlyStmt.get() as { count: number };
-        hourlyCount = hourlyResult?.count || 0;
+        /**
+         * hourly_energy 테이블 통계
+         * 테이블이 없으면 에러를 잡아서 0으로 처리
+         */
+        try {
+          const hourlyStmt = db.prepare(
+            "SELECT COUNT(*) as count FROM hourly_energy"
+          );
+          const hourlyResult = hourlyStmt.get() as { count: number };
+          hourlyCount = hourlyResult?.count || 0;
 
-        // 가장 오래된/최신 데이터 시간
-        const hourlyTimeStmt = db.prepare(
-          `SELECT
-            MIN(timestamp) as oldest,
-            MAX(timestamp) as newest
-           FROM hourly_energy`
-        );
-        const hourlyTimeResult = hourlyTimeStmt.get() as {
-          oldest: number | null;
-          newest: number | null;
-        };
-        if (hourlyTimeResult?.oldest) {
-          oldestHourlyData = new Date(hourlyTimeResult.oldest).toISOString();
-        }
-        if (hourlyTimeResult?.newest) {
-          newestHourlyData = new Date(hourlyTimeResult.newest).toISOString();
+          // 가장 오래된/최신 데이터 시간
+          const hourlyTimeStmt = db.prepare(
+            `SELECT
+              MIN(timestamp) as oldest,
+              MAX(timestamp) as newest
+             FROM hourly_energy`
+          );
+          const hourlyTimeResult = hourlyTimeStmt.get() as {
+            oldest: number | null;
+            newest: number | null;
+          };
+
+          if (hourlyTimeResult?.oldest && hourlyTimeResult.oldest > 0) {
+            oldestHourlyData = new Date(hourlyTimeResult.oldest).toISOString();
+          }
+          if (hourlyTimeResult?.newest && hourlyTimeResult.newest > 0) {
+            newestHourlyData = new Date(hourlyTimeResult.newest).toISOString();
+          }
+        } catch (e) {
+          console.debug("hourly_energy table not found or error querying:", e);
+          hourlyCount = 0;
         }
 
         db.close();
       } catch (e) {
-        console.error("Failed to query database:", e);
+        console.error("Failed to open database:", e);
       }
     }
 

@@ -15,6 +15,7 @@
 import { McPLC } from "./mc-plc";
 import { plc as mockPlc } from "./mock-plc";
 import { PLCConnector } from "./plc-connector";
+import { realtimeDataService } from "./realtime-data-service";
 
 interface PollingConfig {
   ip: string;
@@ -164,6 +165,15 @@ class PLCPollingService {
           cached.lastUpdate = Date.now();
           cached.error = undefined;
         }
+
+        // DB에 저장 (realtime-data-service 사용)
+        const timestamp = Date.now();
+        const testDataPoints = Object.entries(data).map(([address, value]) => ({
+          timestamp,
+          address,
+          value: typeof value === "number" ? value : 0,
+        }));
+        realtimeDataService.insertTestData(testDataPoints);
 
         console.log(`[Polling] ${key} - Data updated at ${new Date().toISOString()}`);
       } catch (error) {

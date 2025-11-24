@@ -6,14 +6,14 @@
  * - DB 관리 (용량, 데이터 정리)
  * - 설정 관리 (시스템 설정 페이지로 이동)
  * - 로그 관리 (로그 페이지로 이동)
- * - 데모 모드 토글
  *
  * 기능:
  * - 폴링 서비스 시작/중지
  * - 현재 설정 표시
  * - DB 파일 크기 및 데이터 행 수 표시
  * - 오래된 데이터 정리
- * - 데모 모드 전환
+ *
+ * 주의: PLC 통신 방식 및 데모 모드는 settings 페이지에서만 변경
  */
 
 "use client";
@@ -32,7 +32,6 @@ import {
   RefreshCw,
   AlertCircle,
   CheckCircle,
-  Zap,
   Trash2,
 } from "lucide-react";
 
@@ -70,7 +69,7 @@ interface DBStats {
 
 export default function AdminPage() {
   const router = useRouter();
-  const { settings, isDemoMode, toggleDemoMode } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const { isAuthenticated, logout } = useAuth();
 
   // 인증 확인 - 미인증 시 로그인 페이지로 리다이렉트
@@ -144,7 +143,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           ip: settings.plcIp,
           port: settings.plcPort,
-          demo: isDemoMode,
+          plcType: settings.plcType,
         }),
       });
 
@@ -157,7 +156,7 @@ export default function AdminPage() {
           port: settings.plcPort,
           interval: settings.pollingInterval,
           chartConfigs: settings.chartConfigs,
-          demo: isDemoMode,
+          plcType: settings.plcType,
         }),
       });
 
@@ -468,32 +467,6 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* 데모 모드 토글 카드 */}
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 mb-6 backdrop-blur-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-purple-500/20 rounded-lg">
-                <Zap className="w-6 h-6 text-purple-400" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-white">데모 모드</h2>
-                <p className="text-sm text-slate-400">
-                  실제 PLC 없이 시뮬레이션 데이터로 테스트
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={toggleDemoMode}
-              className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
-                isDemoMode
-                  ? "bg-purple-500 text-white hover:bg-purple-600"
-                  : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-              }`}
-            >
-              {isDemoMode ? "활성" : "비활성"}
-            </button>
-          </div>
-        </div>
 
         {/* 관리 메뉴 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

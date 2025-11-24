@@ -9,12 +9,16 @@
 import { NextResponse } from "next/server";
 import { realtimeDataService } from "@/lib/realtime-data-service";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const address = searchParams.get("address");
     const setAddress = searchParams.get("setAddress");
-    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : 20;
+    const limit = searchParams.get("limit")
+      ? parseInt(searchParams.get("limit")!)
+      : 20;
 
     if (!address) {
       return NextResponse.json(
@@ -35,7 +39,9 @@ export async function GET(request: Request) {
     // 데이터 병합 (타임스탬프 기준)
     const mergedData = recentData.map((point, index) => {
       const setPoint =
-        setAddressData && setAddressData[index] ? setAddressData[index].value : null;
+        setAddressData && setAddressData[index]
+          ? setAddressData[index].value
+          : null;
       return {
         timestamp: point.timestamp,
         value: point.value,
@@ -53,7 +59,10 @@ export async function GET(request: Request) {
     console.error("[API] Failed to get realtime data:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to get realtime data",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get realtime data",
       },
       { status: 500 }
     );

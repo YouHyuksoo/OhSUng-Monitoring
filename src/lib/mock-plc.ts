@@ -10,10 +10,21 @@ export class MockPLC implements PLCConnector {
   }
 
   private initializeMemory() {
-    // Temperature (D400-D470)
+    // Temperature (D400-D470) - 각 센서마다 다른 초기값
+    // 수절 건조로 (D400, D410, D420): 35-45도
+    // 열풍 건조로 (D430-D470): 45-55도
     for (let i = 0; i <= 70; i += 10) {
-      this.memory.set(`D${400 + i}`, 30 + Math.random() * 10); // Current Temp
-      this.memory.set(`D${401 + i}`, 40); // Set Temp
+      const address = 400 + i;
+      // 수절 건조로 (D400, D410, D420)
+      if (i <= 20) {
+        this.memory.set(`D${address}`, 35 + Math.random() * 10); // 35-45도
+        this.memory.set(`D${address + 1}`, 40); // 설정값 40도
+      }
+      // 열풍 건조로 (D430-D470)
+      else {
+        this.memory.set(`D${address}`, 45 + Math.random() * 10); // 45-55도
+        this.memory.set(`D${address + 1}`, 50); // 설정값 50도
+      }
     }
 
     // Power (D4000-D4038)
@@ -21,7 +32,7 @@ export class MockPLC implements PLCConnector {
     this.memory.set("D4002", 10); // Current
     this.memory.set("D4024", 2200); // Active Power
     this.memory.set("D4030", 60); // Frequency
-    this.memory.set("D4032", 15000); // Forward Active Energy (Wh)
+    this.memory.set("D4032", 15000 + Math.random() * 1000); // Forward Active Energy (Wh) - 15000-16000
   }
 
   async connect(): Promise<void> {
