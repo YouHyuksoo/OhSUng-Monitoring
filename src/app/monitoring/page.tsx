@@ -36,11 +36,13 @@ export default function MonitoringPage() {
     }
   }, [settings.startFullScreen]);
 
-  // 시간별 에너지 폴링 시작
+  // 백엔드 폴링 서비스 시작 (시간별 에너지 + 실시간 데이터)
   useEffect(() => {
-    const startHourlyPolling = async () => {
+    const startBackendPolling = async () => {
       try {
         const isDemoMode = settings.isDemoMode ?? false;
+
+        // 1. 시간별 에너지 폴링 시작 (1시간 단위)
         await fetch("/api/energy/hourly", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -51,15 +53,32 @@ export default function MonitoringPage() {
           }),
         });
         console.log("[MonitoringPage] Hourly energy polling started");
+
+        // 2. 실시간 데이터 폴링 시작 (설정된 인터벌)
+        await fetch("/api/realtime/polling", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ip: settings.plcIp,
+            port: settings.plcPort,
+            interval: settings.pollingInterval,
+            chartConfigs: settings.chartConfigs,
+            demo: isDemoMode,
+          }),
+        });
+        console.log(
+          "[MonitoringPage] Realtime data polling started with interval",
+          settings.pollingInterval
+        );
       } catch (error) {
-        console.error("[MonitoringPage] Failed to start hourly polling:", error);
+        console.error("[MonitoringPage] Failed to start backend polling:", error);
       }
     };
 
     if (settings.plcIp && settings.plcPort) {
-      startHourlyPolling();
+      startBackendPolling();
     }
-  }, [settings.plcIp, settings.plcPort, settings.isDemoMode]);
+  }, [settings.plcIp, settings.plcPort, settings.pollingInterval, settings.isDemoMode, settings.chartConfigs]);
 
   // 알람 임계값 설정 (설정값 사용)
   const SUJUL_TEMP_MIN = settings.sujulTempMin;

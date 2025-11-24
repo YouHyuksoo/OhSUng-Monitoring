@@ -9,7 +9,12 @@
       "Bash(taskkill:*)",
       "Bash(lsof:*)",
       "Bash(netstat:*)",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\n데모 모드 완전 구현: 설정 검증 로직 개선 및 chartConfigs 복원\n\n- settings-context.tsx: 서버에서 로드한 chartConfigs가 비어있으면 기본값으로 복원\n- plc-connection-context.tsx: 데모 모드 활성화 시 PLC 설정 검증 스킵\n- isDemoMode를 의존성 배열에 추가하여 데모 모드 토글 시 재연결 시도\n\n이제 데모 모드 버튼이 제대로 작동하고 설정 페이지에 모든 차트 주소 항목이 표시됨\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)",
+      "Bash(npm install better-sqlite3)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

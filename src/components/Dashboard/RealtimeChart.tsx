@@ -2,14 +2,14 @@
  * @file src/components/Dashboard/RealtimeChart.tsx
  * @description
  * 실시간 차트 컴포넌트
- * PLC 데이터를 폴링하여 실시간으로 차트에 표시합니다.
+ * SQLite DB에서 실시간 센서 데이터를 주기적으로 조회하여 차트에 표시합니다.
  *
  * 주요 기능:
- * - 2초마다 PLC 데이터 폴링 (pollingInterval prop으로 설정 가능)
- * - 최근 20개 데이터 포인트 유지
+ * - DB에서 최근 20개 데이터 포인트 조회 및 표시
  * - 알람 임계값 체크 및 시각적 피드백
  * - 붉은색 외곽선 애니메이션 (알람 발생 시)
  * - 설정값과 측정값 동시 표시
+ * - 10초마다 DB 데이터 갱신
  */
 
 "use client";
@@ -94,17 +94,13 @@ export function RealtimeChart({
   }, [connectionStatus.state]);
 
   /**
-   * PLC 데이터 폴링 함수
-   * - 재귀적 setTimeout 사용 (이전 요청 완료 후 다음 요청 예약)
-   * - AbortController 사용 (컴포넌트 언마운트/연결 끊김 시 즉시 취소)
-   *
-   * 주의: 백엔드에서 중앙화 폴링 서비스 실행 중
-   * - 첫 요청 시 백그라운드 폴링 등록
-   * - 이후 요청들은 캐시된 데이터 반환 (PLC 동시 접속 방지)
-   * - 모든 클라이언트가 같은 데이터 공유
+   * DB에서 실시간 데이터 조회 함수
+   * - 10초마다 DB에서 최근 20개 데이터 포인트 조회
+   * - 백엔드에서 실시간 폴링 서비스가 DB에 저장중
+   * - 모든 클라이언트가 같은 DB 데이터 조회
    */
   useEffect(() => {
-    // 연결되지 않은 상태면 폴링하지 않음
+    // 연결되지 않은 상태면 조회하지 않음
     if (connectionStatus.state !== "connected") {
       return;
     }
@@ -112,19 +108,12 @@ export function RealtimeChart({
     let timeoutId: NodeJS.Timeout;
     const controller = new AbortController();
 
-    const fetchData = async () => {
+    const fetchDataFromDB = async () => {
       try {
-        const addresses = setAddress ? `${address},${setAddress}` : address;
-        let url = `/api/plc?addresses=${addresses}`;
-        if (plcIp && plcPort) {
-          url += `&ip=${plcIp}&port=${plcPort}`;
-        }
-        if (isDemoMode) {
-          url += "&demo=true";
-        }
-        // 중앙화 폴링: 모든 차트 설정 전달
-        if (chartConfigs && chartConfigs.length > 0) {
-          url += `&chartConfigs=${encodeURIComponent(JSON.stringify(chartConfigs))}`;
+        // DB에서 최근 데이터 조회
+        let url = `/api/realtime/data?address=${address}`;
+        if (setAddress) {
+          url += `&setAddress=${setAddress}`;
         }
 
         const res = await fetch(url, { signal: controller.signal });
@@ -137,54 +126,59 @@ export function RealtimeChart({
         const json = await res.json();
 
         // 필수 데이터 검증
-        if (!json || typeof json[address] !== "number") {
+        if (!json || !Array.isArray(json.data)) {
           throw new Error(`Invalid data received for address ${address}`);
         }
 
-        const currentValue = json[address];
-        const setValue = setAddress ? json[setAddress] : currentValue;
+        // 데이터 변환 (DB 포인트 → 차트 포인트)
+        const chartData: DataPoint[] = json.data.map(
+          (point: { timestamp: number; value: number; setAddress?: number }) => {
+            const date = new Date(point.timestamp);
+            const timeStr = `${date.getHours()}:${date
+              .getMinutes()
+              .toString()
+              .padStart(2, "0")}:${date.getSeconds().toString().padStart(2, "0")}`;
 
-        // 알람 체크 (측정값 기준)
-        if (minThreshold !== undefined && maxThreshold !== undefined) {
-          setIsAlarm(
-            currentValue < minThreshold || currentValue > maxThreshold
-          );
+            return {
+              time: timeStr,
+              current: point.value,
+              set: point.setAddress ?? point.value,
+            };
+          }
+        );
+
+        // 최신 값으로 알람 체크
+        if (chartData.length > 0) {
+          const latestPoint = chartData[chartData.length - 1];
+          if (minThreshold !== undefined && maxThreshold !== undefined) {
+            setIsAlarm(
+              latestPoint.current < minThreshold ||
+                latestPoint.current > maxThreshold
+            );
+          }
         }
 
-        const now = new Date();
-        const timeStr = `${now.getHours()}:${now
-          .getMinutes()
-          .toString()
-          .padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
-
-        setData((prev) => {
-          const newData = [
-            ...prev,
-            { time: timeStr, current: currentValue, set: setValue },
-          ];
-          if (newData.length > 20) newData.shift(); // Keep last 20 points
-          return newData;
-        });
+        setData(chartData);
       } catch (error) {
         // AbortError는 무시 (의도된 취소)
         if (error instanceof Error && error.name === "AbortError") {
           return;
         }
 
-        logger.error(`데이터 수집 실패: ${address}`, "RealtimeChart", error);
+        logger.error(`DB 데이터 조회 실패: ${address}`, "RealtimeChart", error);
         // ❌ 에러 보고 (연결 끊김 처리)
         const errorMsg =
-          error instanceof Error ? error.message : "Polling Failed";
+          error instanceof Error ? error.message : "DB Query Failed";
         requestConnectionCheck(errorMsg);
       } finally {
-        // 연결 상태가 여전히 connected일 때만 다음 폴링 예약
+        // 연결 상태가 여전히 connected일 때만 다음 조회 예약
         if (!controller.signal.aborted) {
-          timeoutId = setTimeout(fetchData, pollingInterval);
+          timeoutId = setTimeout(fetchDataFromDB, 10000); // 10초마다 갱신
         }
       }
     };
 
-    fetchData(); // 초기 데이터 로드
+    fetchDataFromDB(); // 초기 데이터 로드
 
     // 정리 함수
     return () => {
@@ -196,12 +190,8 @@ export function RealtimeChart({
     setAddress,
     minThreshold,
     maxThreshold,
-    pollingInterval,
-    plcIp,
-    plcPort,
     connectionStatus.state,
     requestConnectionCheck,
-    isDemoMode,
   ]);
 
   const currentValue = data.length > 0 ? data[data.length - 1].current : 0;
