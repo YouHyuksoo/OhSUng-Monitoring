@@ -176,6 +176,7 @@ export default function MonitoringPage() {
                 pollingInterval={POLLING_INTERVAL}
                 plcIp={PLC_IP}
                 plcPort={PLC_PORT}
+                chartConfigs={settings.chartConfigs}
               />
             )}
           </div>
@@ -222,6 +223,7 @@ export default function MonitoringPage() {
                 pollingInterval={POLLING_INTERVAL}
                 plcIp={PLC_IP}
                 plcPort={PLC_PORT}
+                chartConfigs={settings.chartConfigs}
               />
             </div>
           ))}
@@ -243,6 +245,7 @@ export default function MonitoringPage() {
                 pollingInterval={POLLING_INTERVAL}
                 plcIp={PLC_IP}
                 plcPort={PLC_PORT}
+                chartConfigs={settings.chartConfigs}
               />
             </div>
           ))}

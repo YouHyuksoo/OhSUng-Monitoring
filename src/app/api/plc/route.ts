@@ -75,6 +75,22 @@ function getPlc(
   return cached.plc;
 }
 
+/**
+ * 설정값에서 모든 PLC 주소 추출
+ */
+function extractAllAddressesFromSettings(chartConfigs: any[]): string[] {
+  const addresses = new Set<string>();
+
+  if (Array.isArray(chartConfigs)) {
+    chartConfigs.forEach((config) => {
+      if (config.address) addresses.add(config.address);
+      if (config.setAddress) addresses.add(config.setAddress);
+    });
+  }
+
+  return Array.from(addresses);
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const addresses = searchParams.get("addresses")?.split(",") || [];
@@ -83,6 +99,7 @@ export async function GET(request: Request) {
   const check = searchParams.get("check") === "true";
   const demo = searchParams.get("demo") === "true";
   const pollingInterval = searchParams.get("pollingInterval");
+  const chartConfigsJson = searchParams.get("chartConfigs");
 
   // 연결 확인 모드
   if (check) {
@@ -106,23 +123,35 @@ export async function GET(request: Request) {
     }
   }
 
-  if (addresses.length === 0) {
-    return NextResponse.json(
-      { error: "No addresses provided" },
-      { status: 400 }
-    );
-  }
-
   try {
     const portNum = port ? parseInt(port) : 502;
     const interval = pollingInterval ? parseInt(pollingInterval) : 2000;
 
+    // 설정값의 모든 주소 추출 (chartConfigs 전달된 경우)
+    let pollingAddresses = addresses;
+    if (chartConfigsJson) {
+      try {
+        const chartConfigs = JSON.parse(decodeURIComponent(chartConfigsJson));
+        pollingAddresses = extractAllAddressesFromSettings(chartConfigs);
+      } catch (e) {
+        console.warn("Failed to parse chartConfigs:", e);
+      }
+    }
+
+    if (pollingAddresses.length === 0) {
+      return NextResponse.json(
+        { error: "No addresses provided" },
+        { status: 400 }
+      );
+    }
+
     // 백그라운드 폴링 등록 (처음 요청 시에만)
+    // 모든 클라이언트가 같은 주소 폴링
     if (ip && !demo) {
       pollingService.registerPolling({
         ip,
         port: portNum,
-        addresses,
+        addresses: pollingAddresses,
         interval,
         isDemoMode: false,
       });
@@ -141,7 +170,7 @@ export async function GET(request: Request) {
     // Demo 모드는 직접 폴링 (캐시 없음)
     if (demo) {
       const plc = getPlc(ip, port, demo);
-      const data = await withTimeout(plc.read(addresses), REQUEST_TIMEOUT);
+      const data = await withTimeout(plc.read(pollingAddresses), REQUEST_TIMEOUT);
       return NextResponse.json(data);
     }
 

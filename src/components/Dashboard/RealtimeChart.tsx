@@ -49,6 +49,7 @@ interface RealtimeChartProps {
   pollingInterval?: number;
   plcIp?: string;
   plcPort?: number;
+  chartConfigs?: any[]; // 모든 차트 설정 (중앙화 폴링용)
 }
 
 /**
@@ -73,6 +74,7 @@ export function RealtimeChart({
   pollingInterval = 2000,
   plcIp,
   plcPort,
+  chartConfigs,
 }: RealtimeChartProps) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [isAlarm, setIsAlarm] = useState(false);
@@ -119,6 +121,10 @@ export function RealtimeChart({
         }
         if (isDemoMode) {
           url += "&demo=true";
+        }
+        // 중앙화 폴링: 모든 차트 설정 전달
+        if (chartConfigs && chartConfigs.length > 0) {
+          url += `&chartConfigs=${encodeURIComponent(JSON.stringify(chartConfigs))}`;
         }
 
         const res = await fetch(url, { signal: controller.signal });
