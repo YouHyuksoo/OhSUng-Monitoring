@@ -27,11 +27,18 @@ export function Header() {
    * - settings.appTitle: 설정에서 지정한 애플리케이션 이름
    * - 각 페이지별 상세 이름
    */
+  /**
+   * 현재 페이지가 로그인 페이지인지 확인
+   */
+  const isLoginPage = pathname === "/admin/login";
+
   const getPageTitle = () => {
     const appTitle = settings.appTitle || "모니터링";
     if (pathname === "/monitoring") return `${appTitle} -전력/온도 `;
     if (pathname === "/settings") return `${appTitle} - 설정 관리`;
     if (pathname === "/help") return `${appTitle} - 도움말`;
+    if (pathname === "/admin") return `${appTitle} - 관리자`;
+    if (isLoginPage) return `${appTitle} - 로그인`;
     return appTitle;
   };
 
@@ -73,75 +80,77 @@ export function Header() {
           )}
         </div>
 
-        {/* 중앙 및 우측: 네비게이션 + 컨트롤 */}
-        <div className="flex items-center gap-8">
-          <nav className="flex items-center gap-8 text-sm">
-            <Link
-              href="/monitoring"
-              className={`transition-all font-medium pb-2 border-b-2 ${
-                pathname === "/monitoring"
-                  ? "text-white border-white"
-                  : "text-blue-100 border-transparent hover:text-white hover:border-blue-200"
-              }`}
-            >
-              모니터링
-            </Link>
-            <Link
-              href="/settings"
-              className={`transition-all font-medium pb-2 border-b-2 ${
-                pathname === "/settings"
-                  ? "text-white border-white"
-                  : "text-blue-100 border-transparent hover:text-white hover:border-blue-200"
-              }`}
-            >
-              설정
-            </Link>
-            <Link
-              href="/logs"
-              className={`transition-all font-medium pb-2 border-b-2 ${
-                pathname === "/logs"
-                  ? "text-white border-white"
-                  : "text-blue-100 border-transparent hover:text-white hover:border-blue-200"
-              }`}
-            >
-              로그
-            </Link>
-            <Link
-              href="/help"
-              className={`transition-all font-medium pb-2 border-b-2 ${
-                pathname === "/help"
-                  ? "text-white border-white"
-                  : "text-blue-100 border-transparent hover:text-white hover:border-blue-200"
-              }`}
-            >
-              도움말
-            </Link>
-          </nav>
+        {/* 중앙 및 우측: 네비게이션 + 컨트롤 (로그인 페이지에서는 숨김) */}
+        {!isLoginPage && (
+          <div className="flex items-center gap-8">
+            <nav className="flex items-center gap-8 text-sm">
+              <Link
+                href="/monitoring"
+                className={`transition-all font-medium pb-2 border-b-2 ${
+                  pathname === "/monitoring"
+                    ? "text-white border-white"
+                    : "text-blue-100 border-transparent hover:text-white hover:border-blue-200"
+                }`}
+              >
+                모니터링
+              </Link>
+              <Link
+                href="/settings"
+                className={`transition-all font-medium pb-2 border-b-2 ${
+                  pathname === "/settings"
+                    ? "text-white border-white"
+                    : "text-blue-100 border-transparent hover:text-white hover:border-blue-200"
+                }`}
+              >
+                설정
+              </Link>
+              <Link
+                href="/logs"
+                className={`transition-all font-medium pb-2 border-b-2 ${
+                  pathname === "/logs"
+                    ? "text-white border-white"
+                    : "text-blue-100 border-transparent hover:text-white hover:border-blue-200"
+                }`}
+              >
+                로그
+              </Link>
+              <Link
+                href="/help"
+                className={`transition-all font-medium pb-2 border-b-2 ${
+                  pathname === "/help"
+                    ? "text-white border-white"
+                    : "text-blue-100 border-transparent hover:text-white hover:border-blue-200"
+                }`}
+              >
+                도움말
+              </Link>
+            </nav>
 
-          {/* 테마 토글 버튼 */}
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-blue-500 hover:bg-blue-400 text-white h-9 w-9"
-            title="테마 전환"
-          >
-            {mounted && theme === "dark" ? (
-              <Moon className="h-4 w-4" />
-            ) : (
-              <Sun className="h-4 w-4" />
-            )}
-            <span className="sr-only">Toggle theme</span>
-          </button>
+            {/* 테마 토글 버튼 */}
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-blue-500 hover:bg-blue-400 text-white h-9 w-9"
+              title="테마 전환"
+            >
+              {mounted && theme === "dark" ? (
+                <Moon className="h-4 w-4" />
+              ) : (
+                <Sun className="h-4 w-4" />
+              )}
+              <span className="sr-only">Toggle theme</span>
+            </button>
 
-          {/* 로그아웃 버튼 */}
-          <button
-            onClick={() => setShowLogoutDialog(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors bg-blue-400 hover:bg-blue-300 dark:bg-blue-600 dark:hover:bg-blue-500 text-white px-3 h-9"
-            title="로그아웃"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline text-xs">로그아웃</span>
-          </button>
-        </div>
+            {/* 로그아웃 버튼 */}
+            <button
+              onClick={() => setShowLogoutDialog(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors bg-blue-400 hover:bg-blue-300 dark:bg-blue-600 dark:hover:bg-blue-500 text-white px-3 h-9"
+              title="로그아웃"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline text-xs">로그아웃</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 로그아웃 확인 다이얼로그 */}

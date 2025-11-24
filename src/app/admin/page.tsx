@@ -24,12 +24,11 @@ import { useSettings } from "@/lib/settings-context";
 import { useAuth } from "@/lib/auth-context";
 import {
   Activity,
-  Settings,
-  FileText,
   Database,
+  FileText,
   Play,
   Square,
-  ArrowLeft,
+  Settings,
   RefreshCw,
   AlertCircle,
   CheckCircle,
@@ -81,11 +80,6 @@ export default function AdminPage() {
     }
   }, [isAuthenticated, router]);
 
-  // 로그아웃 핸들러
-  const handleLogout = () => {
-    logout();
-    router.push("/");
-  };
   const [pollingStatus, setPollingStatus] = useState<PollingStatus | null>(
     null
   );
@@ -233,31 +227,6 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* 헤더 */}
-      <div className="border-b border-slate-700 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.push("/")}
-                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-slate-400" />
-              </button>
-              <div className="flex items-center gap-3">
-                <Settings className="w-6 h-6 text-blue-400" />
-                <h1 className="text-2xl font-bold text-white">관리자 대시보드</h1>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-500/20 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors text-sm font-medium"
-            >
-              로그아웃
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* 메인 콘텐츠 */}
       <div className="max-w-6xl mx-auto px-6 py-8">
