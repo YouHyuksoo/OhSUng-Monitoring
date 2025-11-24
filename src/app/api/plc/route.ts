@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { plc as mockPlc } from "@/lib/mock-plc";
 import { McPLC } from "@/lib/mc-plc";
 import { PLCConnector } from "@/lib/plc-connector";
+import { pollingService } from "@/lib/plc-polling-service";
 
 /**
  * PLC 연결 풀 관리 클래스
@@ -81,6 +82,7 @@ export async function GET(request: Request) {
   const port = searchParams.get("port");
   const check = searchParams.get("check") === "true";
   const demo = searchParams.get("demo") === "true";
+  const pollingInterval = searchParams.get("pollingInterval");
 
   // 연결 확인 모드
   if (check) {
@@ -112,23 +114,42 @@ export async function GET(request: Request) {
   }
 
   try {
-    const plc = getPlc(ip, port, demo);
-    const key = demo ? "mock" : `${ip}:${port}`;
-    const cached = demo ? undefined : connections.get(key);
+    const portNum = port ? parseInt(port) : 502;
+    const interval = pollingInterval ? parseInt(pollingInterval) : 2000;
 
-    if (cached) {
-      cached.isReading = true;
-    }
+    // 백그라운드 폴링 등록 (처음 요청 시에만)
+    if (ip && !demo) {
+      pollingService.registerPolling({
+        ip,
+        port: portNum,
+        addresses,
+        interval,
+        isDemoMode: false,
+      });
 
-    try {
-      const data = await withTimeout(plc.read(addresses), REQUEST_TIMEOUT);
-      return NextResponse.json(data);
-    } finally {
+      // 캐시된 데이터 반환
+      const cached = pollingService.getCachedData(ip, portNum);
       if (cached) {
-        cached.isReading = false;
-        cached.lastUsed = Date.now();
+        return NextResponse.json({
+          ...cached.data,
+          _lastUpdate: cached.lastUpdate,
+          _error: cached.error,
+        });
       }
     }
+
+    // Demo 모드는 직접 폴링 (캐시 없음)
+    if (demo) {
+      const plc = getPlc(ip, port, demo);
+      const data = await withTimeout(plc.read(addresses), REQUEST_TIMEOUT);
+      return NextResponse.json(data);
+    }
+
+    // 데이터가 아직 없으면 대기
+    return NextResponse.json(
+      { error: "Polling in progress, please retry" },
+      { status: 202 }
+    );
   } catch (error) {
     console.error("PLC Read Error:", error);
     const message =
