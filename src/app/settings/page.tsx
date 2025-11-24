@@ -8,11 +8,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSettings, ChartConfig } from "@/lib/settings-context";
+import { useAuth } from "@/lib/auth-context";
 import { Toast, ToastType } from "@/components/ui/toast";
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { settings, updateSettings } = useSettings();
+  const { isAuthenticated } = useAuth();
+
+  // 인증 확인 - 미인증 시 로그인 페이지로 리다이렉트
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/admin/login");
+    }
+  }, [isAuthenticated, router]);
   const [localSettings, setLocalSettings] = useState(settings);
   const [isModified, setIsModified] = useState(false);
   const [toast, setToast] = useState<{
