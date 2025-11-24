@@ -107,20 +107,6 @@ export function Header() {
         {/* 중앙 및 우측: 네비게이션 + 컨트롤 (로그인 페이지에서는 숨김) */}
         {!isLoginPage && (
           <div className="flex items-center gap-8 ml-auto pr-6">
-            {/* 폴링 인터벌 표시 */}
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-800/40 rounded-full text-xs text-blue-100 border border-blue-400/20 shadow-sm backdrop-blur-sm">
-              <div className="flex items-center gap-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="font-medium">Interval:</span>
-                <span className="font-bold text-white tracking-wide">
-                  {settings.pollingInterval}ms
-                </span>
-              </div>
-            </div>
-
             <nav className="flex items-center gap-8 text-sm">
               <Link
                 href="/monitoring"
@@ -131,6 +117,16 @@ export function Header() {
                 }`}
               >
                 모니터링
+              </Link>
+              <Link
+                href="/admin"
+                className={`transition-all font-medium pb-2 border-b-2 ${
+                  pathname === "/admin"
+                    ? "text-white border-white"
+                    : "text-blue-100 border-transparent hover:text-white hover:border-blue-200"
+                }`}
+              >
+                대시보드
               </Link>
               <Link
                 href="/settings"

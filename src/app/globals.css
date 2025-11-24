@@ -84,7 +84,8 @@
 
 /* 알람 애니메이션 */
 @keyframes pulse-border {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
   }
@@ -96,4 +97,157 @@
 
 .animate-pulse-border {
   animation: pulse-border 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 네온 글로우 애니메이션 - 더 강렬하게 */
+@keyframes neon-glow-green {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.8), 0 0 20px rgba(0, 255, 136, 0.6),
+      0 0 30px rgba(0, 255, 136, 0.4), 0 0 40px rgba(0, 255, 136, 0.3),
+      inset 0 0 20px rgba(0, 255, 136, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(0, 255, 136, 1), 0 0 30px rgba(0, 255, 136, 0.8),
+      0 0 45px rgba(0, 255, 136, 0.6), 0 0 60px rgba(0, 255, 136, 0.4),
+      inset 0 0 30px rgba(0, 255, 136, 0.2);
+  }
+}
+
+@keyframes neon-glow-blue {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.8), 0 0 20px rgba(0, 212, 255, 0.6),
+      0 0 30px rgba(0, 212, 255, 0.4), 0 0 40px rgba(0, 212, 255, 0.3),
+      inset 0 0 20px rgba(0, 212, 255, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(0, 212, 255, 1), 0 0 30px rgba(0, 212, 255, 0.8),
+      0 0 45px rgba(0, 212, 255, 0.6), 0 0 60px rgba(0, 212, 255, 0.4),
+      inset 0 0 30px rgba(0, 212, 255, 0.2);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes rotate-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+}
+
+/* 글래스모피즘 카드 - 더 어둡게 */
+.glass-card {
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 3D 글래스 구체 */
+.glass-sphere {
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(100, 200, 255, 0.3),
+    rgba(0, 100, 200, 0.1)
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid rgba(0, 212, 255, 0.3);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.4), 0 0 60px rgba(0, 212, 255, 0.2),
+    inset 0 0 40px rgba(100, 200, 255, 0.1),
+    inset -10px -10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* 네온 테두리 - 더 강렬하게 */
+.neon-border-green {
+  border: 2px solid rgba(0, 255, 136, 0.8);
+  animation: neon-glow-green 2s ease-in-out infinite;
+}
+
+.neon-border-blue {
+  border: 2px solid rgba(0, 212, 255, 0.8);
+  animation: neon-glow-blue 2s ease-in-out infinite;
+}
+
+/* 회로도 패턴 배경 - 더 복잡하게 */
+.circuit-pattern {
+  background-image: 
+    /* 수평선 */ linear-gradient(
+      90deg,
+      transparent 0%,
+      transparent 48%,
+      rgba(0, 212, 255, 0.1) 49%,
+      rgba(0, 212, 255, 0.1) 51%,
+      transparent 52%,
+      transparent 100%
+    ),
+    /* 수직선 */
+      linear-gradient(
+        0deg,
+        transparent 0%,
+        transparent 48%,
+        rgba(0, 212, 255, 0.1) 49%,
+        rgba(0, 212, 255, 0.1) 51%,
+        transparent 52%,
+        transparent 100%
+      ),
+    /* 대각선 */
+      linear-gradient(
+        45deg,
+        transparent 0%,
+        transparent 48%,
+        rgba(0, 255, 136, 0.05) 49%,
+        rgba(0, 255, 136, 0.05) 51%,
+        transparent 52%,
+        transparent 100%
+      ),
+    linear-gradient(
+      -45deg,
+      transparent 0%,
+      transparent 48%,
+      rgba(0, 255, 136, 0.05) 49%,
+      rgba(0, 255, 136, 0.05) 51%,
+      transparent 52%,
+      transparent 100%
+    );
+  background-size: 80px 80px, 80px 80px, 60px 60px, 60px 60px;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+}
+
+/* 파티클 애니메이션 */
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
 }

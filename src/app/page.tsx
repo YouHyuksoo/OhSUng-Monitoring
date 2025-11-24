@@ -1,8 +1,15 @@
 /**
  * @file src/app/page.tsx
  * @description
- * PLC 모니터링 시스템 랜딩 페이지
+ * PLC 모니터링 시스템 랜딩 페이지 (참고 이미지 스타일)
  * 관리자와 사용자(모니터링) 역할 분리
+ *
+ * 디자인 컨셉:
+ * - 큰 3D 글래스 구체 로고
+ * - 카드 위에 걸친 아이콘 배지
+ * - 강렬한 네온 글로우 효과
+ * - 복잡한 회로도 패턴 배경
+ * - 사이버펑크 느낌의 미래지향적 디자인
  *
  * 아키텍처:
  * - 관리자: /admin 페이지로 이동 (폴링 서비스 관리, 설정, DB 관리)
@@ -13,17 +20,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, Settings, LogOut } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { Activity, Settings, Zap, Thermometer, Database } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    // 자동 리다이렉트 제거: 사용자가 명시적으로 선택하도록 변경
   }, []);
 
   if (!mounted) {
@@ -35,83 +39,147 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-        {/* 헤더 */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-500/20 rounded-full mb-6">
-            <Activity className="w-8 h-8 text-blue-400" />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
-            PLC 모니터링
-          </h1>
-          <p className="text-slate-300 text-lg">
-            실시간 센서 데이터 모니터링 및 관리 시스템
-          </p>
-        </div>
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-[#0a1628] via-[#1a1a2e] to-[#16213e]">
+      {/* 회로도 패턴 배경 */}
+      <div className="absolute inset-0 circuit-pattern opacity-60" />
 
-        {/* 메뉴 카드들 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* 모니터링 사용자 카드 */}
-          <button
-            onClick={() => handleNavigate("/monitoring")}
-            className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-900/40 to-emerald-900/20 border border-emerald-500/30 p-8 hover:border-emerald-500/60 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/20"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-500/0 group-hover:from-emerald-500/10 group-hover:to-emerald-500/5 transition-all duration-300" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-center w-12 h-12 bg-emerald-500/20 rounded-lg mb-4">
-                <Activity className="w-6 h-6 text-emerald-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">모니터링</h2>
-              <p className="text-slate-300 text-sm mb-6">
-                실시간 센서 데이터 조회 및 차트 모니터링
-              </p>
-              <div className="inline-flex items-center text-emerald-400 font-semibold group-hover:gap-2 transition-all duration-300">
-                시작하기
-                <span className="ml-2 group-hover:translate-x-1 transition-transform duration-300">
-                  →
-                </span>
+      {/* 파티클 효과 (별들) */}
+      <div className="absolute inset-0">
+        {[...Array(80)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-white rounded-full"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animation: `twinkle ${
+                2 + Math.random() * 3
+              }s ease-in-out infinite`,
+              animationDelay: `${Math.random() * 2}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* 메인 콘텐츠 */}
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-4xl">
+          {/* 헤더 - 큰 3D 글래스 구체 로고 */}
+          <div className="text-center mb-20">
+            {/* 3D 글래스 구체 */}
+            <div className="relative inline-block mb-8">
+              <div className="w-32 h-32 glass-sphere rounded-full flex items-center justify-center animate-[float_3s_ease-in-out_infinite]">
+                <Activity
+                  className="w-16 h-16 text-cyan-300"
+                  strokeWidth={2.5}
+                />
               </div>
             </div>
-          </button>
 
-          {/* 관리자 메뉴 카드 */}
-          <button
-            onClick={() => handleNavigate("/admin/login")}
-            className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-900/40 to-blue-900/20 border border-blue-500/30 p-8 hover:border-blue-500/60 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/0 group-hover:from-blue-500/10 group-hover:to-blue-500/5 transition-all duration-300" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-center w-12 h-12 bg-blue-500/20 rounded-lg mb-4">
-                <Settings className="w-6 h-6 text-blue-400" />
+            {/* 타이틀 */}
+            <h1 className="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-cyan-300 via-blue-300 to-cyan-300 bg-clip-text text-transparent">
+              PLC 모니터링
+            </h1>
+            <p className="text-slate-400 text-lg">
+              실시간 센서 데이터 모니터링 및 관리 시스템
+            </p>
+          </div>
+
+          {/* 메인 카드들 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16 pt-10">
+            {/* 모니터링 카드 - 네온 그린 */}
+            <button
+              onClick={() => handleNavigate("/monitoring")}
+              className="group relative rounded-2xl glass-card neon-border-green p-10 pt-16 transition-all duration-500 hover:scale-105 hover:-translate-y-2"
+            >
+              {/* 카드 위에 걸친 아이콘 배지 */}
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
+                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/50 border-4 border-[#0a1628]">
+                  <Activity className="w-8 h-8 text-white" strokeWidth={2.5} />
+                </div>
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">관리자</h2>
-              <p className="text-slate-300 text-sm mb-6">
-                폴링 서비스, 설정 관리 및 데이터베이스 관리
-              </p>
-              <div className="inline-flex items-center text-blue-400 font-semibold group-hover:gap-2 transition-all duration-300">
-                관리하기
-                <span className="ml-2 group-hover:translate-x-1 transition-transform duration-300">
-                  →
-                </span>
+
+              <div className="relative z-10 text-center">
+                {/* 제목 */}
+                <h2 className="text-3xl font-bold text-white mb-3">모니터링</h2>
+
+                {/* 설명 */}
+                <p className="text-slate-400 text-sm mb-6">
+                  실시간 센서 데이터 조회 및 차트 모니터링
+                </p>
+
+                {/* 버튼 */}
+                <div className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500/20 rounded-full text-emerald-400 font-semibold group-hover:bg-emerald-500/30 transition-all duration-300">
+                  <span>시작하기</span>
+                  <span className="group-hover:translate-x-1 transition-transform duration-300">
+                    →
+                  </span>
+                </div>
               </div>
+            </button>
+
+            {/* 관리자 카드 - 네온 블루 */}
+            <button
+              onClick={() => handleNavigate("/admin/login")}
+              className="group relative rounded-2xl glass-card neon-border-blue p-10 pt-16 transition-all duration-500 hover:scale-105 hover:-translate-y-2"
+            >
+              {/* 카드 위에 걸친 아이콘 배지 */}
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
+                <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-cyan-500/50 border-4 border-[#0a1628]">
+                  <Settings className="w-8 h-8 text-white" strokeWidth={2.5} />
+                </div>
+              </div>
+
+              <div className="relative z-10 text-center">
+                {/* 제목 */}
+                <h2 className="text-3xl font-bold text-white mb-3">관리자</h2>
+
+                {/* 설명 */}
+                <p className="text-slate-400 text-sm mb-6">
+                  폴링 서비스, 설정 관리 및 데이터베이스 관리
+                </p>
+
+                {/* 버튼 */}
+                <div className="inline-flex items-center gap-2 px-6 py-3 bg-cyan-500/20 rounded-full text-cyan-400 font-semibold group-hover:bg-cyan-500/30 transition-all duration-300">
+                  <span>관리하기</span>
+                  <span className="group-hover:translate-x-1 transition-transform duration-300">
+                    →
+                  </span>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* 하단 정보 카드 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* 온도 센서 */}
+            <div className="glass-card rounded-xl p-6 text-center border border-cyan-500/20 hover:border-cyan-400/40 transition-all duration-300">
+              <div className="flex items-center justify-center w-12 h-12 bg-cyan-500/20 rounded-lg mb-4 mx-auto">
+                <Thermometer className="w-6 h-6 text-cyan-400" />
+              </div>
+              <div className="text-4xl font-bold text-cyan-400 mb-2">8</div>
+              <p className="text-sm text-slate-400">온도 센서</p>
             </div>
-          </button>
-        </div>
 
-        {/* 정보 섹션 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-8 border-t border-slate-700">
-          <div className="text-center p-4">
-            <div className="text-2xl font-bold text-blue-400 mb-1">8</div>
-            <p className="text-sm text-slate-400">온도 센서</p>
-          </div>
-          <div className="text-center p-4">
-            <div className="text-2xl font-bold text-emerald-400 mb-1">1</div>
-            <p className="text-sm text-slate-400">전력 계측</p>
-          </div>
-          <div className="text-center p-4">
-            <div className="text-2xl font-bold text-amber-400 mb-1">SQLite</div>
-            <p className="text-sm text-slate-400">실시간 저장</p>
+            {/* 전력 계측 */}
+            <div className="glass-card rounded-xl p-6 text-center border border-emerald-500/20 hover:border-emerald-400/40 transition-all duration-300">
+              <div className="flex items-center justify-center w-12 h-12 bg-emerald-500/20 rounded-lg mb-4 mx-auto">
+                <Zap className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div className="text-4xl font-bold text-emerald-400 mb-2">1</div>
+              <p className="text-sm text-slate-400">전력 계측</p>
+            </div>
+
+            {/* 데이터베이스 */}
+            <div className="glass-card rounded-xl p-6 text-center border border-amber-500/20 hover:border-amber-400/40 transition-all duration-300">
+              <div className="flex items-center justify-center w-12 h-12 bg-amber-500/20 rounded-lg mb-4 mx-auto">
+                <Database className="w-6 h-6 text-amber-400" />
+              </div>
+              <div className="text-4xl font-bold text-amber-400 mb-2">
+                SQLite
+              </div>
+              <p className="text-sm text-slate-400">실시간 저장</p>
+            </div>
           </div>
         </div>
       </div>

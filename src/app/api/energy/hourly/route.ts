@@ -2,29 +2,66 @@
  * @file src/app/api/energy/hourly/route.ts
  * @description
  * 시간별 누적 전력량 API (SQLite)
- * - GET: 오늘의 시간별 전력량 조회 (또는 ?date=YYYY-MM-DD로 특정 날짜 조회)
+ *
+ * 엔드포인트:
+ * - GET: 에너지 데이터 조회
+ *   - ?summary=true : 요약 데이터 (당일/주간/월간 합계 + 일별 합계)
+ *   - ?date=YYYY-MM-DD : 특정 날짜 조회
+ *   - ?from=YYYY-MM-DD&to=YYYY-MM-DD : 날짜 범위 조회 (30일 데이터 한 번에)
+ *   - 파라미터 없음 : 오늘 데이터 조회
  * - POST: 폴링 시작
+ *
+ * 초보자 가이드:
+ * 1. **요약 조회 (권장)**: /api/energy/hourly?summary=true
+ * 2. **단일 날짜 조회**: /api/energy/hourly?date=2025-11-25
+ * 3. **범위 조회**: /api/energy/hourly?from=2025-10-26&to=2025-11-25
+ * 4. **오늘 데이터**: /api/energy/hourly
  */
 
 import { NextResponse } from "next/server";
-import { hourlyEnergyService } from "@/lib/hourly-energy-service";
+import { hourlyEnergyService, DailyEnergyData } from "@/lib/hourly-energy-service";
 
+/**
+ * GET: 에너지 데이터 조회
+ * - 날짜 범위 조회 시 한 번의 API 호출로 모든 데이터 반환
+ */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get("date"); // YYYY-MM-DD 형식
+    const summary = searchParams.get("summary"); // 요약 데이터
+    const date = searchParams.get("date"); // 단일 날짜
+    const from = searchParams.get("from"); // 시작 날짜
+    const to = searchParams.get("to"); // 종료 날짜
 
-    let data;
+    // 0. 요약 데이터 조회 (SQL SUM으로 한 번에 계산)
+    if (summary === "true") {
+      const summaryData = hourlyEnergyService.getEnergySummary();
+      return NextResponse.json(summaryData);
+    }
+
+    // 1. 날짜 범위 조회 (from & to)
+    if (from && to) {
+      const data = hourlyEnergyService.getDateRangeData(from, to);
+
+      return NextResponse.json({
+        data,
+        from,
+        to,
+        count: data.length,
+      });
+    }
+
+    // 2. 특정 날짜 조회
+    let data: DailyEnergyData | null;
     if (date) {
-      // 특정 날짜 데이터 조회
       data = hourlyEnergyService.getDayData(date);
     } else {
-      // 오늘 데이터 조회
+      // 3. 오늘 데이터 조회
       data = hourlyEnergyService.getCurrentData();
     }
 
     if (!data) {
-      // 데이터가 없으면 빈 데이터 반환 (에러가 아님)
+      // 데이터가 없으면 빈 데이터 반환
       const today = new Date();
       const todayStr = `${today.getFullYear()}-${String(
         today.getMonth() + 1
@@ -32,7 +69,7 @@ export async function GET(request: Request) {
 
       return NextResponse.json({
         date: date || todayStr,
-        hours: {},
+        hours: new Array(24).fill(0),
         lastUpdate: Date.now(),
       });
     }
@@ -47,6 +84,9 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * POST: 폴링 시작
+ */
 export async function POST(request: Request) {
   try {
     const body = await request.json();

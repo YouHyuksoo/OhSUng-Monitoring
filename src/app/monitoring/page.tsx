@@ -17,11 +17,21 @@ import { useRouter } from "next/navigation";
 import { RealtimeChart } from "@/components/Dashboard/RealtimeChart";
 import { PowerUsageChart } from "@/components/Dashboard/PowerUsageChart";
 import { useSettings } from "@/lib/useSettings";
-import { LogOut } from "lucide-react";
+import { LogOut, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
 
 export default function MonitoringPage() {
   const router = useRouter();
   const { settings } = useSettings();
+  const { theme, setTheme } = useTheme();
+
+  /**
+   * 테마 토글 핸들러
+   * - 다크 모드 ↔ 라이트 모드 전환
+   */
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
 
   /**
    * 자동 전체 화면 처리
@@ -90,6 +100,25 @@ export default function MonitoringPage() {
                 </span>
                 <span className="text-xs text-muted-foreground">Live Data</span>
               </div>
+              {/* 폴링 인터벌 표시 */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-800/40 rounded-full text-xs text-blue-100 border border-blue-400/20 shadow-sm backdrop-blur-sm">
+                <span className="font-medium">Interval:</span>
+                <span className="font-bold text-white tracking-wide">
+                  {settings.pollingInterval}ms
+                </span>
+              </div>
+              {/* 테마 변경 버튼 */}
+              <button
+                onClick={toggleTheme}
+                className="inline-flex items-center justify-center rounded-md w-9 h-9 transition-colors bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600"
+                title={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
+              >
+                {theme === "dark" ? (
+                  <Sun className="h-4 w-4 text-yellow-500" />
+                ) : (
+                  <Moon className="h-4 w-4 text-slate-700" />
+                )}
+              </button>
               {/* 나가기 버튼 */}
               <button
                 onClick={handleExit}

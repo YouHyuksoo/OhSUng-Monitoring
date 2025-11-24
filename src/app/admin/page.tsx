@@ -275,12 +275,7 @@ export default function AdminPage() {
                 {settings.plcIp}:{settings.plcPort}
               </p>
             </div>
-            <div>
-              <p className="text-xs text-slate-400 mb-1">폴링 인터벌</p>
-              <p className="text-sm font-semibold text-white">
-                {settings.pollingInterval}ms
-              </p>
-            </div>
+
             <div>
               <p className="text-xs text-slate-400 mb-1">마지막 갱신</p>
               <p className="text-sm font-semibold text-white">{lastRefresh}</p>
@@ -518,22 +513,22 @@ export default function AdminPage() {
             </div>
           </button>
 
-          {/* 모니터링 */}
+          {/* 도움말 관리 */}
           <button
-            onClick={() => router.push("/monitoring")}
-            className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-900/40 to-emerald-900/20 border border-emerald-500/30 p-6 hover:border-emerald-500/60 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/20 text-left"
+            onClick={() => router.push("/help")}
+            className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-green-900/40 to-green-900/20 border border-green-500/30 p-6 hover:border-green-500/60 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20 text-left"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-500/0 group-hover:from-emerald-500/10 group-hover:to-emerald-500/5 transition-all duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 to-green-500/0 group-hover:from-green-500/10 group-hover:to-green-500/5 transition-all duration-300" />
             <div className="relative z-10">
-              <div className="flex items-center justify-center w-10 h-10 bg-emerald-500/20 rounded-lg mb-3">
-                <Activity className="w-6 h-6 text-emerald-400" />
+              <div className="flex items-center justify-center w-10 h-10 bg-green-500/20 rounded-lg mb-3">
+                <AlertCircle className="w-6 h-6 text-green-400" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">모니터링</h3>
+              <h3 className="text-lg font-bold text-white mb-2">도움말</h3>
               <p className="text-sm text-slate-300 mb-4">
-                실시간 모니터링 대시보드로 이동합니다.
+                시스템 사용 방법과 문서를 확인합니다.
               </p>
-              <div className="inline-flex items-center text-emerald-400 font-semibold group-hover:gap-2 transition-all duration-300 text-sm">
-                대시보드
+              <div className="inline-flex items-center text-green-400 font-semibold group-hover:gap-2 transition-all duration-300 text-sm">
+                도움말 보기
                 <span className="ml-2 group-hover:translate-x-1 transition-transform duration-300">
                   →
                 </span>

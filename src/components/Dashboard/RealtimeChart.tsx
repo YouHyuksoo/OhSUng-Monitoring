@@ -1,7 +1,7 @@
 /**
  * @file src/components/Dashboard/RealtimeChart.tsx
  * @description
- * 실시간 차트 컴포넌트
+ * 실시간 차트 컴포넌트 (Chart.js 기반)
  * SQLite DB에서 실시간 센서 데이터를 주기적으로 조회하여 차트에 표시합니다.
  *
  * 주요 기능:
@@ -10,22 +10,39 @@
  * - 붉은색 외곽선 애니메이션 (알람 발생 시)
  * - 설정값과 측정값 동시 표시
  * - 10초마다 DB 데이터 갱신
+ * - 참고 이미지처럼 그라디언트 채우기 효과
  */
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { Line } from "react-chartjs-2";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
   Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+  Legend,
+  Filler,
+  ChartOptions,
+} from "chart.js";
 import { useTheme } from "@/components/theme-provider";
 import { logger } from "@/lib/logger";
+
+// Chart.js 플러그인 등록
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 interface DataPoint {
   time: string;
@@ -65,6 +82,7 @@ export function RealtimeChart({
   const [data, setData] = useState<DataPoint[]>([]);
   const [isAlarm, setIsAlarm] = useState(false);
   const { theme } = useTheme();
+  const chartRef = useRef<ChartJS<"line">>(null);
 
   /**
    * DB에서 실시간 데이터 조회 함수
@@ -73,7 +91,6 @@ export function RealtimeChart({
    * - 모든 클라이언트가 같은 DB 데이터 조회
    */
   useEffect(() => {
-
     let timeoutId: NodeJS.Timeout;
     const controller = new AbortController();
 
@@ -101,12 +118,19 @@ export function RealtimeChart({
 
         // 데이터 변환 (DB 포인트 → 차트 포인트)
         const chartData: DataPoint[] = json.data.map(
-          (point: { timestamp: number; value: number; setAddress?: number }) => {
+          (point: {
+            timestamp: number;
+            value: number;
+            setAddress?: number;
+          }) => {
             const date = new Date(point.timestamp);
             const timeStr = `${date.getHours()}:${date
               .getMinutes()
               .toString()
-              .padStart(2, "0")}:${date.getSeconds().toString().padStart(2, "0")}`;
+              .padStart(2, "0")}:${date
+              .getSeconds()
+              .toString()
+              .padStart(2, "0")}`;
 
             return {
               time: timeStr,
@@ -151,12 +175,7 @@ export function RealtimeChart({
       controller.abort(); // 진행 중인 요청 취소
       clearTimeout(timeoutId); // 대기 중인 타이머 취소
     };
-  }, [
-    address,
-    setAddress,
-    minThreshold,
-    maxThreshold,
-  ]);
+  }, [address, setAddress, minThreshold, maxThreshold]);
 
   const currentValue = data.length > 0 ? data[data.length - 1].current : 0;
   const setValue = data.length > 0 ? data[data.length - 1].set : 0;
@@ -175,12 +194,134 @@ export function RealtimeChart({
   /**
    * 테마에 따른 색상 설정
    */
-  const axisColor = theme === "dark" ? "#e5e7eb" : "#374151"; // dark: gray-200, light: gray-700
-  const gridColor = theme === "dark" ? "#444" : "#e5e7eb"; // dark: #444, light: gray-200
-  const tooltipBg =
-    theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(255, 255, 255, 0.9)";
-  const tooltipBorder = theme === "dark" ? "#333" : "#e5e7eb";
-  const tooltipText = theme === "dark" ? "#fff" : "#000";
+  const isDark = theme === "dark";
+  const gridColor = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
+  const textColor = isDark ? "#e5e7eb" : "#374151";
+
+  /**
+   * 그라디언트 생성 함수
+   * 참고 이미지처럼 선 아래에 그라디언트 채우기 효과
+   */
+  const createGradient = (
+    ctx: CanvasRenderingContext2D,
+    chartArea: any,
+    color: string
+  ) => {
+    const gradient = ctx.createLinearGradient(
+      0,
+      chartArea.top,
+      0,
+      chartArea.bottom
+    );
+    gradient.addColorStop(0, color + "99"); // 60% 투명도
+    gradient.addColorStop(1, color + "0D"); // 5% 투명도
+    return gradient;
+  };
+
+  /**
+   * Chart.js 데이터 설정
+   */
+  const chartData = {
+    labels: data.map((d) => d.time),
+    datasets: [
+      {
+        label: `측정값 (${unit})`,
+        data: data.map((d) => d.current),
+        borderColor: isAlarm ? "#ef4444" : color,
+        backgroundColor: (context: any) => {
+          const chart = context.chart;
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return color + "33";
+          return createGradient(ctx, chartArea, isAlarm ? "#ef4444" : color);
+        },
+        borderWidth: isAlarm ? 3 : 2.5,
+        fill: true,
+        tension: 0.4, // 부드러운 곡선
+        pointRadius: 0,
+        pointHoverRadius: 0,
+      },
+      ...(setAddress
+        ? [
+            {
+              label: `설정값 (${unit})`,
+              data: data.map((d) => d.set),
+              borderColor: "#3b82f6",
+              backgroundColor: (context: any) => {
+                const chart = context.chart;
+                const { ctx, chartArea } = chart;
+                if (!chartArea) return "#3b82f64D";
+                return createGradient(ctx, chartArea, "#3b82f6");
+              },
+              borderWidth: 1.5,
+              borderDash: [4, 4],
+              fill: true,
+              stepped: true,
+              tension: 0,
+              pointRadius: 0,
+              pointHoverRadius: 0,
+            },
+          ]
+        : []),
+    ],
+  };
+
+  /**
+   * Chart.js 옵션 설정
+   */
+  const options: ChartOptions<"line"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: "index",
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: isDark
+          ? "rgba(0, 0, 0, 0.8)"
+          : "rgba(255, 255, 255, 0.9)",
+        titleColor: textColor,
+        bodyColor: textColor,
+        borderColor: isDark ? "#333" : "#e5e7eb",
+        borderWidth: 1,
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          color: gridColor,
+          display: true,
+        },
+        ticks: {
+          color: textColor,
+          font: {
+            size: 11,
+          },
+          maxTicksLimit: 8,
+        },
+      },
+      y: {
+        min: yMin === "auto" ? undefined : yMin,
+        max: yMax === "auto" ? undefined : yMax,
+        grid: {
+          color: gridColor,
+          display: true,
+        },
+        ticks: {
+          color: textColor,
+          font: {
+            size: 11,
+          },
+          callback: function (value) {
+            return value + unit;
+          },
+        },
+      },
+    },
+  };
 
   return (
     <div
@@ -223,68 +364,8 @@ export function RealtimeChart({
         </div>
       </div>
 
-      <div className="w-full h-full p-2">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={data}
-            margin={{ top: 25, right: 10, left: 10, bottom: 5 }}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke={gridColor}
-              opacity={0.5}
-              vertical={true}
-            />
-            <XAxis
-              dataKey="time"
-              fontSize={11}
-              tick={{ fill: axisColor }}
-              tickLine={true}
-              axisLine={true}
-              stroke={axisColor}
-              minTickGap={30}
-            />
-            <YAxis
-              domain={[yMin, yMax]}
-              fontSize={11}
-              tick={{ fill: axisColor }}
-              unit={unit}
-              tickLine={true}
-              axisLine={true}
-              stroke={axisColor}
-              width={50}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: tooltipBg,
-                border: `1px solid ${tooltipBorder}`,
-                borderRadius: "4px",
-                color: tooltipText,
-              }}
-              itemStyle={{ color: tooltipText }}
-              labelStyle={{ color: axisColor, marginBottom: "0.25rem" }}
-            />
-            <Line
-              type="monotone"
-              dataKey="current"
-              stroke={isAlarm ? "#ef4444" : color}
-              strokeWidth={isAlarm ? 3 : 2}
-              dot={false}
-              isAnimationActive={false}
-            />
-            {setAddress && (
-              <Line
-                type="step"
-                dataKey="set"
-                stroke="#3b82f6"
-                strokeWidth={1}
-                strokeDasharray="4 4"
-                dot={false}
-                isAnimationActive={false}
-              />
-            )}
-          </LineChart>
-        </ResponsiveContainer>
+      <div className="w-full h-full p-2 pt-10">
+        <Line ref={chartRef} data={chartData} options={options} />
       </div>
     </div>
   );
