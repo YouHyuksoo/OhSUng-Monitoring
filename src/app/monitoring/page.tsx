@@ -36,6 +36,31 @@ export default function MonitoringPage() {
     }
   }, [settings.startFullScreen]);
 
+  // 시간별 에너지 폴링 시작
+  useEffect(() => {
+    const startHourlyPolling = async () => {
+      try {
+        const isDemoMode = settings.isDemoMode ?? false;
+        await fetch("/api/energy/hourly", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ip: settings.plcIp,
+            port: settings.plcPort,
+            demo: isDemoMode,
+          }),
+        });
+        console.log("[MonitoringPage] Hourly energy polling started");
+      } catch (error) {
+        console.error("[MonitoringPage] Failed to start hourly polling:", error);
+      }
+    };
+
+    if (settings.plcIp && settings.plcPort) {
+      startHourlyPolling();
+    }
+  }, [settings.plcIp, settings.plcPort, settings.isDemoMode]);
+
   // 알람 임계값 설정 (설정값 사용)
   const SUJUL_TEMP_MIN = settings.sujulTempMin;
   const SUJUL_TEMP_MAX = settings.sujulTempMax;
