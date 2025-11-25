@@ -117,10 +117,65 @@ export async function POST(request: NextRequest) {
 
     await fs.appendFile(logFile, logLine, "utf-8");
 
+    // 오래된 로그 정리 (비동기로 실행하여 응답 지연 방지)
+    cleanupOldLogs().catch(console.error);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to save log:", error);
     return NextResponse.json({ error: "Failed to save log" }, { status: 500 });
+  }
+}
+
+/**
+ * 오래된 로그 파일 정리
+ * settings.json의 logRetention 값을 읽어서 처리
+ */
+async function cleanupOldLogs() {
+  try {
+    // 설정 파일 읽기
+    const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
+    let retentionDays = 30; // 기본값 30일
+
+    try {
+      const settingsData = await fs.readFile(SETTINGS_FILE, "utf-8");
+      const settings = JSON.parse(settingsData);
+      if (settings.logRetention && typeof settings.logRetention === "number") {
+        retentionDays = settings.logRetention;
+      }
+    } catch {
+      // 설정 파일이 없거나 읽기 실패 시 기본값 사용
+    }
+
+    // 로그 디렉토리 파일 목록 조회
+    const files = await fs.readdir(LOGS_DIR);
+    const now = new Date();
+    const msPerDay = 24 * 60 * 60 * 1000;
+
+    for (const file of files) {
+      // YYYY-MM-DD.log 형식 확인
+      if (!/^\d{4}-\d{2}-\d{2}\.log$/.test(file)) continue;
+
+      const dateStr = file.replace(".log", "");
+      const fileDate = new Date(dateStr);
+
+      // 날짜 파싱 유효성 검사
+      if (isNaN(fileDate.getTime())) continue;
+
+      // 경과 일수 계산
+      const diffTime = now.getTime() - fileDate.getTime();
+      const diffDays = Math.floor(diffTime / msPerDay);
+
+      if (diffDays > retentionDays) {
+        const filePath = path.join(LOGS_DIR, file);
+        await fs.unlink(filePath);
+        console.log(
+          `[Log Cleanup] Deleted old log file: ${file} (Age: ${diffDays} days, Retention: ${retentionDays} days)`
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Failed to cleanup old logs:", error);
   }
 }
 

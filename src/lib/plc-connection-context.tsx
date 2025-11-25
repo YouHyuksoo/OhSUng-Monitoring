@@ -74,6 +74,10 @@ export function PLCConnectionProvider({
   // 컴포넌트 마운트 상태 ref
   const isMountedRef = useRef(true);
 
+  // 재시도 횟수 추적 ref
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
+
   /**
    * PLC 연결 상태 체크 함수
    * - 성공 시: connected 상태로 변경
@@ -122,6 +126,8 @@ export function PLCConnectionProvider({
             if (prev.state === "connected") return prev;
 
             logger.success("PLC 연결 성공", "PLCConnectionContext");
+            // 성공 시 재시도 카운트 초기화
+            retryCountRef.current = 0;
             return {
               state: "connected",
               lastChecked: new Date(),
@@ -146,12 +152,27 @@ export function PLCConnectionProvider({
           lastChecked: new Date(),
         });
 
-        // 재시도 간격 (데모 모드는 더 길게)
-        const retryInterval = settings.plcType === "demo" ? 10000 : 5000;
-        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = setTimeout(() => {
-          checkConnection();
-        }, retryInterval);
+        // 재시도 로직 개선: 최대 3회까지만 짧게 재시도, 그 후에는 중단 (또는 긴 간격)
+        if (retryCountRef.current < MAX_RETRIES) {
+          retryCountRef.current += 1;
+          const retryInterval = settings.plcType === "demo" ? 10000 : 5000;
+
+          logger.warning(
+            `재연결 시도 중... (${retryCountRef.current}/${MAX_RETRIES})`,
+            "PLCConnectionContext"
+          );
+
+          if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+          retryTimerRef.current = setTimeout(() => {
+            checkConnection();
+          }, retryInterval);
+        } else {
+          logger.error(
+            `최대 재시도 횟수(${MAX_RETRIES}회) 초과. 자동 재연결을 중단합니다. 설정을 확인해주세요.`,
+            "PLCConnectionContext"
+          );
+          // 더 이상 자동 재시도 하지 않음. 사용자가 설정을 변경하거나 수동으로 액션을 취해야 함.
+        }
       }
     }
   }, [settings.plcIp, settings.plcPort, settings.plcType]);

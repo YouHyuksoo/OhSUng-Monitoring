@@ -33,6 +33,8 @@ export default function SettingsPage() {
     message?: string;
   } | null>(null);
 
+  const [testLog, setTestLog] = useState<string | null>(null);
+
   // Sync local state with global settings when they change (e.g. on initial load)
   useEffect(() => {
     setLocalSettings(settings);
@@ -111,8 +113,15 @@ export default function SettingsPage() {
    * PLC 연결 테스트 - Modbus 프로토콜일 때 addressMapping 포함
    */
   const handleTestConnection = async () => {
+    setTestLog("연결 테스트 시작...\n");
+    const appendLog = (msg: string) =>
+      setTestLog((prev) => (prev || "") + msg + "\n");
+
     try {
       let url = `/api/plc?check=true&ip=${localSettings.plcIp}&port=${localSettings.plcPort}&plcType=${localSettings.plcType}`;
+
+      appendLog(`Target: ${localSettings.plcIp}:${localSettings.plcPort}`);
+      appendLog(`Protocol: ${localSettings.plcType}`);
 
       // Modbus 프로토콜일 때 addressMapping 파라미터 추가
       if (
@@ -123,22 +132,34 @@ export default function SettingsPage() {
           JSON.stringify(localSettings.modbusAddressMapping)
         );
         url += `&addressMapping=${addressMappingJson}`;
+        appendLog(
+          `AddressMapping: ${JSON.stringify(
+            localSettings.modbusAddressMapping
+          )}`
+        );
       }
 
+      appendLog("Connecting...");
       const res = await fetch(url);
       const data = await res.json();
+
+      appendLog(`Response Status: ${res.status}`);
+      appendLog(`Response Data: ${JSON.stringify(data, null, 2)}`);
+
       if (data.connected) {
         setToast({
           type: "success",
           title: "PLC 연결 성공",
           message: "PLC와 정상적으로 연결되었습니다.",
         });
+        appendLog("✅ 연결 성공!");
       } else {
         setToast({
           type: "error",
           title: "PLC 연결 실패",
           message: data.error || "연결할 수 없습니다.",
         });
+        appendLog(`❌ 연결 실패: ${data.error}`);
       }
     } catch (error) {
       setToast({
@@ -147,6 +168,11 @@ export default function SettingsPage() {
         message: "PLC 연결 테스트 중 오류가 발생했습니다.",
       });
       console.error(error);
+      appendLog(
+        `❌ 에러 발생: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   };
 
@@ -169,7 +195,7 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 gap-6">
         {/* 애플리케이션 타이틀 설정 */}
-        <div className="bg-card p-6 rounded-lg shadow border">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold mb-4">애플리케이션 설정</h2>
           <div className="space-y-4">
             <div>
@@ -197,7 +223,7 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* PLC 연결 설정 */}
-        <div className="bg-card p-6 rounded-lg shadow border">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold mb-4">PLC 연결 설정</h2>
           <div className="space-y-4">
             <div>
@@ -344,11 +370,16 @@ export default function SettingsPage() {
             >
               PLC 연결 테스트
             </button>
+            {testLog && (
+              <div className="mt-4 p-3 bg-black text-green-400 font-mono text-xs rounded-md overflow-x-auto whitespace-pre-wrap border border-gray-700 max-h-40 overflow-y-auto">
+                {testLog}
+              </div>
+            )}
           </div>
         </div>
 
         {/* 모니터링 설정 */}
-        <div className="bg-card p-6 rounded-lg shadow border">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold mb-4">모니터링 설정</h2>
           <div className="space-y-4">
             <div>
@@ -479,7 +510,7 @@ export default function SettingsPage() {
         </div>
 
         {/* 수절 건조로 알람 설정 */}
-        <div className="bg-card p-6 rounded-lg shadow border">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold mb-4">수절 건조로 알람 설정</h2>
           <div className="space-y-4">
             <div>
@@ -571,7 +602,7 @@ export default function SettingsPage() {
         </div>
 
         {/* 데이터 관리 설정 */}
-        <div className="bg-card p-6 rounded-lg shadow border lg:col-span-2">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 lg:col-span-2">
           <h2 className="text-lg font-semibold mb-4">데이터 관리</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -619,7 +650,7 @@ export default function SettingsPage() {
         </div>
 
         {/* 차트 주소 매핑 설정 */}
-        <div className="bg-card rounded-lg shadow-sm border p-6 lg:col-span-2">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">차트 주소 매핑</h2>
             <span className="text-xs text-muted-foreground">
