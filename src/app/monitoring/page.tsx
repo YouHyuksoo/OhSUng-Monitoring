@@ -179,11 +179,11 @@ export default function MonitoringPage() {
 
       {/* 콘텐츠 */}
       <div className="flex-1 overflow-auto">
-        <div className="p-4 gap-4 flex flex-col h-full">
+        <div className="p-4 gap-4 flex flex-col h-full min-h-[800px]">
           {/* 상단: 실시간 현황 & 전력 사용 현황 */}
           <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
             {/* 실시간 현황 */}
-            <div className="bg-card dark:bg-slate-800/80 rounded-lg shadow-sm border dark:border-slate-700/50 p-4 flex flex-col">
+            <div className="bg-card dark:bg-slate-800/80 rounded-lg shadow-sm border dark:border-slate-700/50 p-4 flex flex-col overflow-hidden min-h-0">
               <div className="flex items-center justify-between mb-2 flex-none">
                 <h2 className="text-lg font-semibold">실시간 현황</h2>
                 <div className="flex items-center gap-2">
@@ -209,7 +209,7 @@ export default function MonitoringPage() {
             </div>
 
             {/* 전력 사용 현황 */}
-            <div className="bg-card dark:bg-slate-800/80 rounded-lg shadow-sm border dark:border-slate-700/50 p-4 flex flex-col">
+            <div className="bg-card dark:bg-slate-800/80 rounded-lg shadow-sm border dark:border-slate-700/50 p-4 flex flex-col overflow-hidden min-h-0">
               <h2 className="text-lg font-semibold mb-3 flex-none">
                 전력 사용 현황
               </h2>
@@ -220,7 +220,7 @@ export default function MonitoringPage() {
           </div>
 
           {/* 하단: 수절 건조로 + 열풍 건조로 */}
-          <div className="bg-card dark:bg-slate-800/80 rounded-lg shadow-sm border dark:border-slate-700/50 p-4 flex-1 min-h-0 flex flex-col">
+          <div className="bg-card dark:bg-slate-800/80 rounded-lg shadow-sm border dark:border-slate-700/50 p-4 flex-1 min-h-0 flex flex-col overflow-hidden">
             <div className="flex items-center gap-2 mb-3 flex-none">
               <h2 className="text-lg font-semibold">온도 현황</h2>
               <div className="px-2 py-1 bg-red-500 text-white text-xs font-medium rounded">

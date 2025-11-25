@@ -24,11 +24,16 @@ import {
   Thermometer,
   Database,
   ArrowRight,
+  RefreshCw,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -42,8 +47,116 @@ export default function Home() {
     router.push(path);
   };
 
+  const handleUpgradeClick = () => {
+    setShowUpgradeConfirm(true);
+  };
+
+  const executeUpgrade = async () => {
+    setShowUpgradeConfirm(false);
+    setIsUpgrading(true);
+    try {
+      const res = await fetch("/api/system/upgrade", { method: "POST" });
+      const data = await res.json();
+
+      if (data.success) {
+        alert(data.message);
+        if (data.message.includes("재시작")) {
+          // 서버 재시작 대기 후 새로고침
+          setTimeout(() => {
+            window.location.reload();
+          }, 5000);
+        } else {
+          setIsUpgrading(false);
+        }
+      } else {
+        alert(`오류: ${data.message}\n${data.error || ""}`);
+        setIsUpgrading(false);
+      }
+    } catch (error) {
+      alert("요청 처리 중 오류가 발생했습니다.");
+      setIsUpgrading(false);
+    }
+  };
+
   return (
     <div className="h-screen w-full relative overflow-hidden bg-[#020617]">
+      {/* 업그레이드 확인 다이얼로그 */}
+      {showUpgradeConfirm && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-[#0f172a] border border-slate-700 rounded-2xl shadow-2xl overflow-hidden animate-[pulse-ring_0.3s_ease-out]">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    시스템 업그레이드
+                  </h3>
+                  <p className="text-slate-400 text-sm">
+                    최신 버전으로 업데이트 하시겠습니까?
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-800/50 rounded-lg p-4 mb-6 border border-slate-700">
+                <ul className="text-sm text-slate-300 space-y-2 list-disc list-inside">
+                  <li>Git 저장소에서 최신 코드를 가져옵니다.</li>
+                  <li>필요한 라이브러리를 설치하고 빌드합니다.</li>
+                  <li>
+                    <span className="text-amber-400 font-bold">
+                      완료 후 서버가 자동으로 재시작됩니다.
+                    </span>
+                  </li>
+                  <li>재시작 중에는 서비스가 잠시 중단됩니다.</li>
+                </ul>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowUpgradeConfirm(false)}
+                  className="px-4 py-2 rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors font-medium"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={executeUpgrade}
+                  className="px-4 py-2 rounded-lg bg-cyan-600 text-white hover:bg-cyan-500 transition-colors font-medium flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  업그레이드 시작
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 업그레이드 로딩 오버레이 */}
+      {isUpgrading && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm text-white">
+          <RefreshCw className="w-16 h-16 animate-spin text-cyan-400 mb-4" />
+          <h2 className="text-2xl font-bold mb-2">시스템 업그레이드 중...</h2>
+          <p className="text-slate-400">
+            잠시만 기다려주세요. 서버가 재시작됩니다.
+          </p>
+        </div>
+      )}
+
+      {/* 우측 상단 유틸리티 메뉴 */}
+      <div className="absolute top-6 right-6 z-40 flex gap-2">
+        <button
+          onClick={handleUpgradeClick}
+          disabled={isUpgrading}
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all text-sm backdrop-blur-md"
+        >
+          <RefreshCw
+            className={`w-4 h-4 ${isUpgrading ? "animate-spin" : ""}`}
+          />
+          <span>Update</span>
+        </button>
+      </div>
+
       {/* 배경 그라디언트 및 효과 - Deep Space Aurora */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1e1b4b] via-[#020617] to-[#000000]" />
 
