@@ -26,11 +26,12 @@ echo   8. 서버 재시작 (PM2 Restart)
 echo   9. 서버 중지 (PM2 Stop)
 echo   10. 서버 상태 확인 (PM2 List)
 echo   11. 실시간 로그 보기 (PM2 Logs)
+echo   12. 윈도우 시작 프로그램 등록 (Auto Startup)
 echo.
 echo   0. 종료
 echo.
 echo ========================================================
-set /p choice="원하는 작업의 번호를 입력하세요 (0-11): "
+set /p choice="원하는 작업의 번호를 입력하세요 (0-12): "
 
 if "%choice%"=="1" goto CLONE
 if "%choice%"=="2" goto INITIAL_SETUP
@@ -43,6 +44,7 @@ if "%choice%"=="8" goto RESTART_SERVER
 if "%choice%"=="9" goto STOP_SERVER
 if "%choice%"=="10" goto STATUS
 if "%choice%"=="11" goto VIEW_LOG
+if "%choice%"=="12" goto AUTO_STARTUP
 if "%choice%"=="0" goto END
 goto MENU
 
@@ -92,7 +94,15 @@ IF %ERRORLEVEL% NEQ 0 (
 
 echo.
 echo [3/3] 초기 배포 및 프로세스 등록 실행...
-call deploy.bat
+echo.
+echo 라이브러리 설치 중...
+call npm install --legacy-peer-deps
+echo.
+echo 프로젝트 빌드 중...
+call npm run build
+echo.
+echo 서버 시작 중...
+call pm2 start ecosystem.config.js
 
 echo.
 echo [4/4] 현재 실행 상태 저장
@@ -107,7 +117,25 @@ cls
 echo ========================================================
 echo        전체 업그레이드 (Full Upgrade)
 echo ========================================================
-call deploy.bat
+echo.
+echo 1. 소스 코드 가져오는 중...
+git pull
+echo.
+echo 2. 라이브러리 설치 중...
+call npm install --legacy-peer-deps
+echo.
+echo 3. 프로젝트 빌드 중...
+call npm run build
+echo.
+echo 4. 서버 재시작 중...
+call pm2 restart ecosystem.config.js
+IF %ERRORLEVEL% NEQ 0 (
+    echo [알림] 실행 중인 프로세스가 없습니다. 새로 시작합니다.
+    call pm2 start ecosystem.config.js
+)
+call pm2 save
+echo.
+echo ✅ 전체 업그레이드가 완료되었습니다!
 pause
 goto MENU
 
@@ -159,13 +187,15 @@ cls
 echo ========================================================
 echo        서버 시작 (PM2 Start)
 echo ========================================================
-call pm2 start npm --name "plc-monitor" -- start
+call pm2 start ecosystem.config.js
 IF %ERRORLEVEL% NEQ 0 (
     echo [알림] 이미 실행 중이거나 오류가 발생했습니다. 재시작을 시도합니다.
-    call pm2 restart plc-monitor
+    call pm2 restart ecosystem.config.js
 )
 call pm2 save
+echo.
 echo [성공] 서버 시작 명령이 완료되었습니다.
+echo [알림] 현재 실행 중인 프로세스가 윈도우 시작 시 자동 실행되도록 저장되었습니다.
 pause
 goto MENU
 
@@ -174,10 +204,10 @@ cls
 echo ========================================================
 echo        서버 재시작 (PM2 Restart)
 echo ========================================================
-call pm2 restart plc-monitor
+call pm2 restart ecosystem.config.js
 IF %ERRORLEVEL% NEQ 0 (
     echo [알림] 실행 중인 프로세스가 없습니다. 새로 시작합니다.
-    call pm2 start npm --name "plc-monitor" -- start
+    call pm2 start ecosystem.config.js
     call pm2 save
 ) else (
     echo [성공] 서버가 재시작되었습니다.
@@ -211,6 +241,38 @@ echo        실시간 로그 보기 (PM2 Logs)
 echo ========================================================
 echo 로그를 보려면 Ctrl+C를 눌러 종료하세요.
 call pm2 logs plc-monitor
+pause
+goto MENU
+
+:AUTO_STARTUP
+cls
+echo ========================================================
+echo        윈도우 시작 프로그램 등록 (Auto Startup)
+echo ========================================================
+echo.
+echo [주의] 반드시 '관리자 권한'으로 실행해야 합니다!
+echo.
+echo 1. PM2 Windows Startup 도구 설치 확인...
+call npm list -g pm2-windows-startup > nul 2>&1
+IF %ERRORLEVEL% NEQ 0 (
+    echo [알림] 도구가 없어 설치합니다...
+    call npm install -g pm2-windows-startup
+)
+
+echo.
+echo 2. 시작 프로그램 등록 실행...
+call pm2-startup install
+IF %ERRORLEVEL% NEQ 0 (
+    echo [알림] 이미 등록되어 있거나 권한 문제일 수 있습니다.
+) else (
+    echo [성공] 윈도우 시작 프로그램에 등록되었습니다.
+)
+
+echo.
+echo 3. 현재 실행 중인 프로세스 목록 저장...
+call pm2 save
+echo.
+echo ✅ 설정이 완료되었습니다! 이제 재부팅 시 서버가 자동 실행됩니다.
 pause
 goto MENU
 
