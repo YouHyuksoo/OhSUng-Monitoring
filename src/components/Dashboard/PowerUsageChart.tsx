@@ -31,6 +31,7 @@ import {
   ChartOptions,
 } from "chart.js";
 import { useTheme } from "@/components/theme-provider";
+import { useSettings } from "@/lib/useSettings";
 
 // Chart.js 플러그인 등록
 ChartJS.register(
@@ -62,6 +63,8 @@ interface TodayDataResponse {
 }
 
 export function PowerUsageChart() {
+  const { theme } = useTheme();
+  const { settings } = useSettings();
   const [hourlyData, setHourlyData] = useState<any[]>([]);
   const [dailyData, setDailyData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +73,6 @@ export function PowerUsageChart() {
     weekly: 0,
     monthly: 0,
   });
-  const { theme } = useTheme();
 
   /**
    * 에너지 데이터 로드
@@ -135,10 +137,10 @@ export function PowerUsageChart() {
 
     fetchData();
 
-    // 10초마다 데이터 갱신
-    const interval = setInterval(fetchData, 10000);
+    // 설정된 주기로 데이터 갱신
+    const interval = setInterval(fetchData, settings.monitoringRefreshInterval);
     return () => clearInterval(interval);
-  }, []);
+  }, [settings.monitoringRefreshInterval]);
 
   const isDark = theme === "dark";
   const gridColor = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";

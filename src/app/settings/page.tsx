@@ -77,7 +77,12 @@ export default function SettingsPage() {
     setLocalSettings((prev) => {
       const newConfigs = [...prev.chartConfigs];
       const updated = { ...newConfigs[index] };
-      if (field === "name" || field === "address" || field === "setAddress" || field === "accumulationAddress") {
+      if (
+        field === "name" ||
+        field === "address" ||
+        field === "setAddress" ||
+        field === "accumulationAddress"
+      ) {
         updated[field] = value;
       }
       newConfigs[index] = updated;
@@ -110,7 +115,10 @@ export default function SettingsPage() {
       let url = `/api/plc?check=true&ip=${localSettings.plcIp}&port=${localSettings.plcPort}&plcType=${localSettings.plcType}`;
 
       // Modbus 프로토콜일 때 addressMapping 파라미터 추가
-      if (localSettings.plcType === "modbus" && localSettings.modbusAddressMapping) {
+      if (
+        localSettings.plcType === "modbus" &&
+        localSettings.modbusAddressMapping
+      ) {
         const addressMappingJson = encodeURIComponent(
           JSON.stringify(localSettings.modbusAddressMapping)
         );
@@ -165,7 +173,10 @@ export default function SettingsPage() {
           <h2 className="text-lg font-semibold mb-4">애플리케이션 설정</h2>
           <div className="space-y-4">
             <div>
-              <label htmlFor="appTitle" className="text-sm font-medium block mb-1.5">
+              <label
+                htmlFor="appTitle"
+                className="text-sm font-medium block mb-1.5"
+              >
                 애플리케이션 타이틀
               </label>
               <input
@@ -230,7 +241,12 @@ export default function SettingsPage() {
               <select
                 id="plcType"
                 value={localSettings.plcType}
-                onChange={(e) => handleChange("plcType", e.target.value as "mc" | "modbus" | "demo")}
+                onChange={(e) =>
+                  handleChange(
+                    "plcType",
+                    e.target.value as "mc" | "modbus" | "demo"
+                  )
+                }
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <option value="mc">Mitsubishi MC Protocol</option>
@@ -238,11 +254,12 @@ export default function SettingsPage() {
                 <option value="demo">Demo Mode (Mock PLC)</option>
               </select>
               <p className="text-xs text-muted-foreground mt-1">
-                현재: {
-                  localSettings.plcType === "mc" ? "미쯔비시 MC" :
-                  localSettings.plcType === "modbus" ? "LS Modbus TCP" :
-                  "데모 모드"
-                }
+                현재:{" "}
+                {localSettings.plcType === "mc"
+                  ? "미쯔비시 MC"
+                  : localSettings.plcType === "modbus"
+                  ? "LS Modbus TCP"
+                  : "데모 모드"}
               </p>
             </div>
 
@@ -259,7 +276,9 @@ export default function SettingsPage() {
                   <input
                     type="number"
                     id="dAddressBase"
-                    value={localSettings.modbusAddressMapping?.dAddressBase || 0}
+                    value={
+                      localSettings.modbusAddressMapping?.dAddressBase || 0
+                    }
                     onChange={(e) =>
                       handleModbusAddressMappingChange(
                         "dAddressBase",
@@ -270,7 +289,8 @@ export default function SettingsPage() {
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    D 주소 변환의 기준값 (예: D400의 기본값이 0이면 400으로 계산)
+                    D 주소 변환의 기준값 (예: D400의 기본값이 0이면 400으로
+                    계산)
                   </p>
                 </div>
 
@@ -284,7 +304,9 @@ export default function SettingsPage() {
                   <input
                     type="number"
                     id="modbusOffset"
-                    value={localSettings.modbusAddressMapping?.modbusOffset || 0}
+                    value={
+                      localSettings.modbusAddressMapping?.modbusOffset || 0
+                    }
                     onChange={(e) =>
                       handleModbusAddressMappingChange(
                         "modbusOffset",
@@ -308,7 +330,8 @@ export default function SettingsPage() {
                     Modbus Offset = (D주소값 - dAddressBase) + modbusOffset
                   </code>
                   <p className="text-xs text-blue-800 dark:text-blue-300">
-                    예: D400을 읽을 때, dAddressBase=0, modbusOffset=0이면 → (400 - 0) + 0 = 400
+                    예: D400을 읽을 때, dAddressBase=0, modbusOffset=0이면 →
+                    (400 - 0) + 0 = 400
                   </p>
                 </div>
               </>
@@ -330,17 +353,17 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div>
               <label
-                htmlFor="polling"
+                htmlFor="plcPolling"
                 className="text-sm font-medium block mb-1.5"
               >
-                폴링 주기 (밀리초)
+                PLC 폴링 주기 (밀리초)
               </label>
               <input
                 type="number"
-                id="polling"
-                value={localSettings.pollingInterval}
+                id="plcPolling"
+                value={localSettings.plcPollingInterval}
                 onChange={(e) =>
-                  handleChange("pollingInterval", parseInt(e.target.value))
+                  handleChange("plcPollingInterval", parseInt(e.target.value))
                 }
                 placeholder="2000"
                 min="500"
@@ -348,7 +371,36 @@ export default function SettingsPage() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                현재: {localSettings.pollingInterval / 1000}초마다 데이터 갱신
+                현재: {(localSettings.plcPollingInterval || 2000) / 1000}초마다
+                PLC에서 데이터 수집
+              </p>
+            </div>
+            <div>
+              <label
+                htmlFor="monitoringRefresh"
+                className="text-sm font-medium block mb-1.5"
+              >
+                모니터링 갱신 주기 (밀리초)
+              </label>
+              <input
+                type="number"
+                id="monitoringRefresh"
+                value={localSettings.monitoringRefreshInterval || 10000}
+                onChange={(e) =>
+                  handleChange(
+                    "monitoringRefreshInterval",
+                    parseInt(e.target.value)
+                  )
+                }
+                placeholder="10000"
+                min="1000"
+                step="1000"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                현재:{" "}
+                {(localSettings.monitoringRefreshInterval || 10000) / 1000}
+                초마다 모니터링 화면 갱신
               </p>
             </div>
             <div>
@@ -356,22 +408,71 @@ export default function SettingsPage() {
                 htmlFor="retention"
                 className="text-sm font-medium block mb-1.5"
               >
-                차트 데이터 포인트 수
+                차트 데이터 표시 방식 (기본값)
               </label>
-              <input
-                type="number"
+              <select
                 id="retention"
                 value={localSettings.dataRetention}
                 onChange={(e) =>
                   handleChange("dataRetention", parseInt(e.target.value))
                 }
-                placeholder="20"
-                min="10"
-                max="100"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="20">개수 기준 (최근 20개)</option>
+                <option value="6">시간 기준 (최근 6시간)</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                차트 데이터를 개수로 표시할지, 시간 범위로 표시할지 선택 (개별
+                설정이 우선)
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="tempDataLimit"
+                className="text-sm font-medium block mb-1.5"
+              >
+                온도 차트 표시 개수
+              </label>
+              <input
+                type="number"
+                id="tempDataLimit"
+                value={localSettings.tempDataLimit}
+                onChange={(e) =>
+                  handleChange("tempDataLimit", parseInt(e.target.value))
+                }
+                placeholder="6"
+                min="3"
+                max="50"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                차트에 표시할 최대 데이터 포인트 수
+                온도 차트에 표시할 최근 데이터 개수 (기본: 6개)
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="powerDataHours"
+                className="text-sm font-medium block mb-1.5"
+              >
+                실시간 전력량 표시 시간 (시간)
+              </label>
+              <input
+                type="number"
+                id="powerDataHours"
+                value={localSettings.powerDataHours}
+                onChange={(e) =>
+                  handleChange("powerDataHours", parseFloat(e.target.value))
+                }
+                placeholder="6"
+                min="1"
+                max="24"
+                step="0.5"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                실시간 전력량 차트에 표시할 시간 범위 (기본: 6시간)
               </p>
             </div>
           </div>
@@ -473,20 +574,6 @@ export default function SettingsPage() {
         <div className="bg-card p-6 rounded-lg shadow border lg:col-span-2">
           <h2 className="text-lg font-semibold mb-4">데이터 관리</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={localSettings.autoSave}
-                  onChange={(e) => handleChange("autoSave", e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium">자동 저장 활성화</span>
-              </label>
-              <p className="text-xs text-muted-foreground mt-1 ml-6">
-                데이터를 자동으로 로컬 스토리지에 저장합니다.
-              </p>
-            </div>
             <div>
               <label
                 htmlFor="log-retention"
@@ -796,16 +883,20 @@ export default function SettingsPage() {
               </p>
               <ul className="list-disc list-inside text-blue-700 dark:text-blue-400 space-y-1">
                 <li>
-                  <strong>순방향 유효전력량 주소</strong> (전력): 현재 전력 사용량을 읽는 주소 (예: D4032)
+                  <strong>순방향 유효전력량 주소</strong> (전력): 현재 전력
+                  사용량을 읽는 주소 (예: D4032)
                 </li>
                 <li>
-                  <strong>누적 측정값 주소</strong> (전력): 일일 누적 전력량을 폴링하는 주소 (예: D6100)
+                  <strong>누적 측정값 주소</strong> (전력): 일일 누적 전력량을
+                  폴링하는 주소 (예: D6100)
                 </li>
                 <li>
-                  <strong>현재값 주소</strong> (온도): PLC에서 현재 센서 값을 읽는 주소
+                  <strong>현재값 주소</strong> (온도): PLC에서 현재 센서 값을
+                  읽는 주소
                 </li>
                 <li>
-                  <strong>설정값 주소</strong> (온도): PLC에 목표 설정값이 저장된 주소
+                  <strong>설정값 주소</strong> (온도): PLC에 목표 설정값이
+                  저장된 주소
                 </li>
                 <li>
                   주소 형식:{" "}

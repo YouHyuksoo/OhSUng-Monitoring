@@ -31,6 +31,7 @@ import {
 } from "chart.js";
 import { useTheme } from "@/components/theme-provider";
 import { logger } from "@/lib/logger";
+import { useSettings } from "@/lib/useSettings";
 
 // Chart.js 플러그인 등록
 ChartJS.register(
@@ -65,6 +66,8 @@ interface RealtimeChartProps {
   bordered?: boolean; // 테두리 표시 여부
   yMin?: number | "auto"; // Y축 최소값
   yMax?: number | "auto"; // Y축 최대값
+  dataLimit?: number; // 표시할 데이터 개수 (개수 기준)
+  dataHours?: number; // 표시할 데이터 시간 범위 (시간 기준)
 }
 
 export function RealtimeChart({
@@ -78,17 +81,20 @@ export function RealtimeChart({
   bordered = false,
   yMin = "auto",
   yMax = "auto",
+  dataLimit,
+  dataHours,
 }: RealtimeChartProps) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [isAlarm, setIsAlarm] = useState(false);
   const { theme } = useTheme();
+  const { settings } = useSettings();
   const chartRef = useRef<ChartJS<"line">>(null);
 
   /**
    * DB에서 실시간 데이터 조회 함수
-   * - 10초마다 DB에서 최근 20개 데이터 포인트 조회
-   * - 백엔드에서 실시간 폴링 서비스가 DB에 저장중
-   * - 모든 클라이언트가 같은 DB 데이터 조회
+   * - dataHours 우선: N시간 범위 데이터 조회
+   * - dataLimit: 최근 N개 데이터 조회
+   * - DB가 시간순 정렬해서 주므로 그대로 표시
    */
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -96,8 +102,17 @@ export function RealtimeChart({
 
     const fetchDataFromDB = async () => {
       try {
-        // DB에서 최근 데이터 조회
+        // DB에서 데이터 조회 (hours 우선, 없으면 limit 사용)
         let url = `/api/realtime/data?address=${address}`;
+
+        if (dataHours !== undefined) {
+          // 시간 범위로 조회 (전력량 차트)
+          url += `&hours=${dataHours}`;
+        } else if (dataLimit !== undefined) {
+          // 개수로 조회 (온도 차트)
+          url += `&limit=${dataLimit}`;
+        }
+
         if (setAddress) {
           url += `&setAddress=${setAddress}`;
         }
@@ -140,6 +155,9 @@ export function RealtimeChart({
           }
         );
 
+        // 데이터 업데이트
+        setData(chartData);
+
         // 최신 값으로 알람 체크
         if (chartData.length > 0) {
           const latestPoint = chartData[chartData.length - 1];
@@ -150,8 +168,6 @@ export function RealtimeChart({
             );
           }
         }
-
-        setData(chartData);
       } catch (error) {
         // AbortError는 무시 (의도된 취소)
         if (error instanceof Error && error.name === "AbortError") {
@@ -163,7 +179,7 @@ export function RealtimeChart({
       } finally {
         // 다음 조회 예약 (에러 발생해도 계속 시도)
         if (!controller.signal.aborted) {
-          timeoutId = setTimeout(fetchDataFromDB, 10000); // 10초마다 갱신
+          timeoutId = setTimeout(fetchDataFromDB, settings.monitoringRefreshInterval); // 설정된 주기로 갱신
         }
       }
     };
@@ -175,7 +191,7 @@ export function RealtimeChart({
       controller.abort(); // 진행 중인 요청 취소
       clearTimeout(timeoutId); // 대기 중인 타이머 취소
     };
-  }, [address, setAddress, minThreshold, maxThreshold]);
+  }, [address, setAddress, minThreshold, maxThreshold, dataLimit, dataHours, settings.monitoringRefreshInterval]);
 
   const currentValue = data.length > 0 ? data[data.length - 1].current : 0;
   const setValue = data.length > 0 ? data[data.length - 1].set : 0;

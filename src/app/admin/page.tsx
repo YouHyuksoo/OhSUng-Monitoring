@@ -155,7 +155,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           ip: settings.plcIp,
           port: settings.plcPort,
-          interval: settings.pollingInterval,
+          interval: settings.plcPollingInterval, // PLC 폴링 주기 사용
           chartConfigs: settings.chartConfigs,
           plcType: settings.plcType,
           modbusAddressMapping: settings.modbusAddressMapping,
@@ -276,6 +276,18 @@ export default function AdminPage() {
               </p>
             </div>
 
+            <div>
+              <p className="text-xs text-slate-400 mb-1">PLC 폴링 주기</p>
+              <p className="text-sm font-semibold text-white">
+                {settings.plcPollingInterval / 1000}초
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-1">모니터링 갱신 주기</p>
+              <p className="text-sm font-semibold text-white">
+                {settings.monitoringRefreshInterval / 1000}초
+              </p>
+            </div>
             <div>
               <p className="text-xs text-slate-400 mb-1">마지막 갱신</p>
               <p className="text-sm font-semibold text-white">{lastRefresh}</p>

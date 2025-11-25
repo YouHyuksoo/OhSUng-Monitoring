@@ -12,7 +12,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RealtimeChart } from "@/components/Dashboard/RealtimeChart";
 import { PowerUsageChart } from "@/components/Dashboard/PowerUsageChart";
@@ -24,6 +24,7 @@ export default function MonitoringPage() {
   const router = useRouter();
   const { settings } = useSettings();
   const { theme, setTheme } = useTheme();
+  const [isPollingActive, setIsPollingActive] = useState(false);
 
   /**
    * 테마 토글 핸들러
@@ -51,6 +52,35 @@ export default function MonitoringPage() {
       enterFullScreen();
     }
   }, [settings.startFullScreen]);
+
+  /**
+   * 폴링 상태 확인
+   * - 5초마다 백엔드 폴링 서비스 상태 확인
+   * - 폴링 중이면 Live Data, 아니면 Offline 표시
+   */
+  useEffect(() => {
+    const checkPollingStatus = async () => {
+      try {
+        const res = await fetch("/api/polling/status");
+        if (res.ok) {
+          const data = await res.json();
+          setIsPollingActive(data.isRunning || false);
+        } else {
+          setIsPollingActive(false);
+        }
+      } catch (error) {
+        setIsPollingActive(false);
+      }
+    };
+
+    // 초기 상태 확인
+    checkPollingStatus();
+
+    // 5초마다 상태 확인
+    const interval = setInterval(checkPollingStatus, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   /**
    * 모니터링 페이지 나가기 핸들러
@@ -95,10 +125,22 @@ export default function MonitoringPage() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  {isPollingActive && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  )}
+                  <span
+                    className={`relative inline-flex rounded-full h-2 w-2 ${
+                      isPollingActive ? "bg-green-500" : "bg-red-500"
+                    }`}
+                  ></span>
                 </span>
-                <span className="text-xs text-muted-foreground">Live Data</span>
+                <span
+                  className={`text-xs font-medium ${
+                    isPollingActive ? "text-green-500" : "text-red-500"
+                  }`}
+                >
+                  {isPollingActive ? "Live Data" : "Offline"}
+                </span>
               </div>
               {/* 폴링 인터벌 표시 */}
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-800/40 rounded-full text-xs text-blue-100 border border-blue-400/20 shadow-sm backdrop-blur-sm">
@@ -111,7 +153,9 @@ export default function MonitoringPage() {
               <button
                 onClick={toggleTheme}
                 className="inline-flex items-center justify-center rounded-md w-9 h-9 transition-colors bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600"
-                title={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
+                title={
+                  theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"
+                }
               >
                 {theme === "dark" ? (
                   <Sun className="h-4 w-4 text-yellow-500" />
@@ -139,7 +183,7 @@ export default function MonitoringPage() {
           {/* 상단: 실시간 현황 & 전력 사용 현황 */}
           <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
             {/* 실시간 현황 */}
-            <div className="bg-card rounded-lg shadow-sm border p-4 flex flex-col">
+            <div className="bg-card dark:bg-slate-800/80 rounded-lg shadow-sm border dark:border-slate-700/50 p-4 flex flex-col">
               <div className="flex items-center justify-between mb-2 flex-none">
                 <h2 className="text-lg font-semibold">실시간 현황</h2>
                 <div className="flex items-center gap-2">
@@ -158,13 +202,14 @@ export default function MonitoringPage() {
                     title={powerConfig.name}
                     unit="Wh"
                     color="#ef4444"
+                    dataHours={settings.powerDataHours}
                   />
                 )}
               </div>
             </div>
 
             {/* 전력 사용 현황 */}
-            <div className="bg-card rounded-lg shadow-sm border p-4 flex flex-col">
+            <div className="bg-card dark:bg-slate-800/80 rounded-lg shadow-sm border dark:border-slate-700/50 p-4 flex flex-col">
               <h2 className="text-lg font-semibold mb-3 flex-none">
                 전력 사용 현황
               </h2>
@@ -175,7 +220,7 @@ export default function MonitoringPage() {
           </div>
 
           {/* 하단: 수절 건조로 + 열풍 건조로 */}
-          <div className="bg-card rounded-lg shadow-sm border p-4 flex-1 min-h-0 flex flex-col">
+          <div className="bg-card dark:bg-slate-800/80 rounded-lg shadow-sm border dark:border-slate-700/50 p-4 flex-1 min-h-0 flex flex-col">
             <div className="flex items-center gap-2 mb-3 flex-none">
               <h2 className="text-lg font-semibold">온도 현황</h2>
               <div className="px-2 py-1 bg-red-500 text-white text-xs font-medium rounded">
@@ -201,6 +246,7 @@ export default function MonitoringPage() {
                     bordered={true}
                     yMin={0}
                     yMax={80}
+                    dataLimit={settings.tempDataLimit}
                   />
                 </div>
               ))}
@@ -219,6 +265,7 @@ export default function MonitoringPage() {
                     bordered={true}
                     yMin={0}
                     yMax={80}
+                    dataLimit={settings.tempDataLimit}
                   />
                 </div>
               ))}

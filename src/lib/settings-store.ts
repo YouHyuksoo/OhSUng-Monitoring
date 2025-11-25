@@ -34,7 +34,9 @@ export interface Settings {
   plcPort: number;
   plcType: "mc" | "modbus" | "demo";
   modbusAddressMapping?: ModbusAddressMapping;
-  pollingInterval: number;
+  pollingInterval: number; // @deprecated plcPollingInterval 사용 권장
+  plcPollingInterval: number; // PLC로부터 데이터를 폴링하는 주기 (밀리초)
+  monitoringRefreshInterval: number; // 모니터링 화면에서 DB 데이터를 조회하는 주기 (밀리초)
   dataRetention: number;
   sujulTempMin: number;
   sujulTempMax: number;
@@ -44,6 +46,9 @@ export interface Settings {
   logRetention: number;
   startFullScreen: boolean;
   chartConfigs: ChartConfig[];
+  // 차트 데이터 표시 설정
+  tempDataLimit: number; // 온도 차트 표시 개수 (기본값: 6)
+  powerDataHours: number; // 실시간 전력량 표시 시간 범위 (기본값: 6시간)
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -55,7 +60,9 @@ const DEFAULT_SETTINGS: Settings = {
     dAddressBase: 0,
     modbusOffset: 0,
   },
-  pollingInterval: 2000,
+  pollingInterval: 2000, // 하위 호환성 유지
+  plcPollingInterval: 2000, // PLC 폴링 주기 (기본값: 2초)
+  monitoringRefreshInterval: 10000, // 모니터링 갱신 주기 (기본값: 10초)
   dataRetention: 20,
   sujulTempMin: 30,
   sujulTempMax: 50,
@@ -64,6 +71,8 @@ const DEFAULT_SETTINGS: Settings = {
   autoSave: true,
   logRetention: 30,
   startFullScreen: true,
+  tempDataLimit: 6, // 온도 차트 표시 개수
+  powerDataHours: 6, // 실시간 전력량 표시 시간 (6시간)
   chartConfigs: [
     {
       id: "power-1",

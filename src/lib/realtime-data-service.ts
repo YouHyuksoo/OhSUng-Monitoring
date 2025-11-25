@@ -44,7 +44,6 @@ class RealtimeDataService {
   private pollingInterval: NodeJS.Timeout | null = null;
   private connection: PLCConnector | null = null;
   private currentAddresses: string[] = []; // 현재 폴링 중인 주소들
-  private pollInterval: number = 2000; // 기본 폴링 인터벌
   private maxDataPoints = 20; // 메모리 캐시 최대 포인트
 
   /**
@@ -99,7 +98,6 @@ class RealtimeDataService {
     }
 
     this.currentAddresses = addresses;
-    this.pollInterval = interval;
 
     // 연결 설정
     if (plcType === "demo") {
@@ -223,12 +221,63 @@ class RealtimeDataService {
   }
 
   /**
-   * 특정 주소의 최근 데이터 조회 (메모리 캐시)
+   * 특정 주소의 최근 데이터 조회 (DB에서) - 개수 기준
+   * @deprecated getRecentDataByTime 사용 권장
    */
   getRecentData(address: string, limit: number = 20): RealtimeDataPoint[] {
-    const cache = this.memoryCache.get(address) || [];
-    return cache.slice(-limit);
+    if (!this.db) {
+      return [];
+    }
+
+    try {
+      const stmt = this.db.prepare(`
+        SELECT timestamp, address, value FROM realtime_data
+        WHERE address = ?
+        ORDER BY timestamp DESC
+        LIMIT ?
+      `);
+
+      const rows = stmt.all(address, limit) as RealtimeDataPoint[];
+      // 오래된 것부터 최신 순으로 정렬
+      return rows.reverse();
+    } catch (error) {
+      console.error("[RealtimeDataService] Failed to get recent data:", error);
+      return [];
+    }
   }
+
+  /**
+   * 특정 주소의 최근 N시간 데이터 조회 (시간 범위 기준)
+   * @param address PLC 주소
+   * @param hours 조회할 시간 (기본값: 6시간)
+   * @returns 해당 시간 범위의 모든 데이터 포인트 (시간순 정렬)
+   */
+  getRecentDataByTime(address: string, hours: number = 6): RealtimeDataPoint[] {
+    if (!this.db) {
+      return [];
+    }
+
+    try {
+      // 현재 시간 기준 N시간 전 타임스탬프 계산
+      const now = Date.now();
+      const cutoffTime = now - hours * 60 * 60 * 1000;
+
+      const stmt = this.db.prepare(`
+        SELECT timestamp, address, value FROM realtime_data
+        WHERE address = ? AND timestamp >= ?
+        ORDER BY timestamp ASC
+      `);
+
+      return stmt.all(address, cutoffTime) as RealtimeDataPoint[];
+    } catch (error) {
+      console.error(
+        "[RealtimeDataService] Failed to get recent data by time:",
+        error
+      );
+      return [];
+    }
+  }
+
 
   /**
    * 가상 데이터를 DB 및 메모리 캐시에 저장 (테스트용)
