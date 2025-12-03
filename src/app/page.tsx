@@ -132,7 +132,7 @@ export default function Home() {
   };
 
   return (
-    <div className="h-screen w-full relative overflow-hidden bg-[#020617]">
+    <div className="h-screen w-full relative overflow-hidden bg-[#020617] flex flex-col">
       {/* 업그레이드 확인 다이얼로그 */}
       {showUpgradeConfirm && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -241,7 +241,7 @@ export default function Home() {
       </div>
 
       {/* 메인 콘텐츠 컨테이너 (좌우 분할) */}
-      <div className="relative z-10 h-full max-w-[1600px] mx-auto px-6 lg:px-12 py-8 flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-24">
+      <div className="relative z-10 flex-1 max-w-[1600px] mx-auto px-6 lg:px-12 py-8 flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-24">
         {/* 좌측: 브랜드 영역 */}
         <div className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-left space-y-8">
           {/* 3D 글래스 구체 로고 */}
@@ -368,6 +368,21 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* 하단 푸터 */}
+      <footer className="relative z-10 border-t border-white/10 bg-black/20 backdrop-blur-sm">
+        <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* 좌측: 회사명 */}
+          <div className="text-sm text-slate-400">
+            <span className="font-semibold text-slate-300">Jisung Solution Works</span>
+          </div>
+
+          {/* 우측: 버전 */}
+          <div className="text-xs text-slate-500">
+            v{process.env.NEXT_PUBLIC_APP_VERSION || "0.1.0"}
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
