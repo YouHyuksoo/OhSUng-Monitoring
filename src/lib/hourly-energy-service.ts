@@ -597,15 +597,17 @@ class HourlyEnergyService {
   }
 }
 
-// 전역 타입 선언
+/**
+ * 싱글톤 인스턴스 관리
+ * - 전역 변수에 저장하여 서버 인스턴스 재시작 전까지 유지
+ * - 개발/배포 환경 모두에서 동일한 인스턴스 사용
+ */
 declare global {
   var hourlyEnergyService: HourlyEnergyService | undefined;
 }
 
-// 싱글톤 인스턴스 관리
 export const hourlyEnergyService =
   global.hourlyEnergyService || new HourlyEnergyService();
 
-if (process.env.NODE_ENV !== "production") {
-  global.hourlyEnergyService = hourlyEnergyService;
-}
+// 개발/배포 환경 모두에서 전역 저장 (인스턴스 재사용)
+global.hourlyEnergyService = hourlyEnergyService;

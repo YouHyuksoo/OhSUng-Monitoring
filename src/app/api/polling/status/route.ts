@@ -10,11 +10,21 @@ import { NextResponse } from "next/server";
 import { realtimeDataService } from "@/lib/realtime-data-service";
 import { hourlyEnergyService } from "@/lib/hourly-energy-service";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // 현재 폴링 상태 조회
     const isRealtimePolling = realtimeDataService.isPollingActive();
     const isHourlyPolling = hourlyEnergyService.isPollingActive();
+
+    /**
+     * 진단 로그: 싱글톤 인스턴스 확인 (개발용)
+     * - 배포 환경에서 상태 불일치 문제 진단
+     */
+    if (process.env.NODE_ENV === "production") {
+      console.log(
+        `[API/polling/status] Realtime: ${isRealtimePolling}, Hourly: ${isHourlyPolling}`
+      );
+    }
 
     const realtimeStatus = {
       isPolling: isRealtimePolling,
