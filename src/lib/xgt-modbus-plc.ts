@@ -146,10 +146,13 @@ export class XgtModbusPLC implements PLCConnector {
     // 설정된 매핑 규칙 적용
     const modbusOffset = dAddressValue - this.addressMapping.dAddressBase + this.addressMapping.modbusOffset;
 
-    console.log(
-      `Address mapping: D${dAddressValue} → Modbus offset ${modbusOffset} ` +
-      `(base=${this.addressMapping.dAddressBase}, offset=${this.addressMapping.modbusOffset})`
-    );
+    // 디버그 모드일 때만 상세 매핑 로그 출력 (기본은 비활성화 - 반복 제거)
+    if (process.env.DEBUG_MODBUS_MAPPING === 'true') {
+      console.log(
+        `Address mapping: D${dAddressValue} → Modbus offset ${modbusOffset} ` +
+        `(base=${this.addressMapping.dAddressBase}, offset=${this.addressMapping.modbusOffset})`
+      );
+    }
 
     return modbusOffset;
   }
@@ -166,9 +169,12 @@ export class XgtModbusPLC implements PLCConnector {
   async read(addresses: string[]): Promise<PLCData> {
     if (!this.isConnected) {
       try {
+        console.log(`[XgtModbusPLC] Connecting to ${this.ip}:${this.port}...`);
         await this.connect();
+        console.log(`[XgtModbusPLC] ✅ Connected successfully`);
       } catch (e) {
-        console.error("Failed to connect for read:", e);
+        const errorMsg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+        console.error(`[XgtModbusPLC] ❌ Connection failed - ${errorMsg}`);
         // 연결 실패 시 모든 주소에 0 반환 (크래시 방지)
         const fallback: PLCData = {};
         addresses.forEach((addr) => (fallback[addr] = 0));
@@ -201,7 +207,8 @@ export class XgtModbusPLC implements PLCConnector {
             result[addr] = values[0] || 0;
           }
         } catch (e) {
-          console.error(`Failed to read ${addr}:`, e);
+          const errorMsg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+          console.error(`[XgtModbusPLC] ❌ Read failed for ${addr} - ${errorMsg}`);
           result[addr] = 0; // Fallback
         }
       })

@@ -523,15 +523,19 @@ class HourlyEnergyService {
         this.loadTodayData();
       }
 
-      // D6100 데이터 읽기
-      console.log("[HourlyEnergyService] Reading D6100...");
+      // D6100 데이터 읽기 - 실제 통신 시작
+      const hour = this.getCurrentHour();
+      const startTime = Date.now();
+
+      console.log(
+        `[HourlyEnergyService] Poll started - ${today} ${hour}:00:00, connecting to PLC...`
+      );
+
       const data = await this.connection.read(["D6100"]);
       const value = data["D6100"];
-      console.log(`[HourlyEnergyService] Read D6100 value: ${value}`);
+      const elapsed = Date.now() - startTime;
 
       if (typeof value === "number") {
-        const hour = this.getCurrentHour();
-
         if (this.currentData) {
           // 메모리 데이터 업데이트
           this.currentData.hours[hour] = value;
@@ -542,16 +546,30 @@ class HourlyEnergyService {
 
           // 다음 정각 스케줄링
           this.scheduleNextPoll();
+
+          // 성공 로그
+          console.log(
+            `[HourlyEnergyService] ✅ Poll success - D6100: ${value}Wh (${elapsed}ms)`
+          );
         } else {
           console.error(
             "[HourlyEnergyService] currentData is null, cannot update"
           );
         }
       } else {
-        console.warn(`[HourlyEnergyService] Invalid value for D6100: ${value}`);
+        console.warn(
+          `[HourlyEnergyService] ⚠️  Invalid value for D6100: ${JSON.stringify(value)} (${elapsed}ms)`
+        );
+        this.scheduleNextPoll();
       }
     } catch (error) {
-      console.error("[HourlyEnergyService] Polling failed:", error);
+      if (error instanceof Error) {
+        console.error(
+          `[HourlyEnergyService] ❌ Poll failed - ${error.name}: ${error.message}`
+        );
+      } else {
+        console.error(`[HourlyEnergyService] ❌ Poll failed - ${error}`);
+      }
       this.scheduleNextPoll();
     }
   };
