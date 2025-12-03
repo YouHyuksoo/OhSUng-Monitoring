@@ -21,12 +21,10 @@ import {
   Activity,
   Settings,
   Zap,
-  Thermometer,
   Database,
   ArrowRight,
   RefreshCw,
   AlertTriangle,
-  X,
 } from "lucide-react";
 
 /**
@@ -46,7 +44,6 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
-  const [pollingStatus, setPollingStatus] = useState<PollingStatus | null>(null);
   const [systemStatus, setSystemStatus] = useState({
     realtimeStatus: "offline", // "online" 또는 "offline"
     hourlyStatus: "offline", // "online" 또는 "offline"
@@ -63,7 +60,6 @@ export default function Home() {
       const response = await fetch("/api/polling/status");
       if (response.ok) {
         const data = await response.json();
-        setPollingStatus(data);
         setSystemStatus({
           realtimeStatus: data.services.realtime.isPolling ? "online" : "offline",
           hourlyStatus: data.services.hourly.isPolling ? "online" : "offline",
@@ -241,27 +237,27 @@ export default function Home() {
       </div>
 
       {/* 메인 콘텐츠 컨테이너 (좌우 분할) */}
-      <div className="relative z-10 flex-1 max-w-[1600px] mx-auto px-6 lg:px-12 py-8 flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-24">
+      <div className="relative z-10 flex-1 w-full max-w-[1600px] mx-auto px-6 lg:px-12 py-4 lg:py-6 flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-16 overflow-hidden">
         {/* 좌측: 브랜드 영역 */}
-        <div className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-left space-y-8">
+        <div className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-left space-y-4 lg:space-y-6">
           {/* 3D 글래스 구체 로고 */}
-          <div className="relative group">
+          <div className="relative group h-32 lg:h-40 flex items-center justify-center">
             <div className="absolute inset-0 bg-cyan-400/30 rounded-full blur-2xl group-hover:blur-3xl transition-all duration-500" />
-            <div className="w-40 h-40 lg:w-56 lg:h-56 glass-sphere rounded-full flex items-center justify-center animate-[float_4s_ease-in-out_infinite] relative z-10">
+            <div className="w-32 h-32 lg:w-40 lg:h-40 glass-sphere rounded-full flex items-center justify-center animate-[float_4s_ease-in-out_infinite] relative z-10">
               <Activity
-                className="w-20 h-20 lg:w-28 lg:h-28 text-cyan-300 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]"
+                className="w-16 h-16 lg:w-20 lg:h-20 text-cyan-300 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]"
                 strokeWidth={1.5}
               />
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h1 className="text-5xl lg:text-7xl font-bold tracking-tight">
+          <div className="space-y-2">
+            <h1 className="text-3xl lg:text-5xl font-bold tracking-tight">
               <span className="bg-gradient-to-r from-cyan-300 via-blue-200 to-cyan-300 bg-clip-text text-transparent drop-shadow-lg">
                 PLC Monitoring
               </span>
             </h1>
-            <p className="text-slate-400 text-lg lg:text-2xl font-light max-w-lg leading-relaxed">
+            <p className="text-slate-400 text-sm lg:text-lg font-light max-w-lg leading-relaxed">
               실시간 센서 데이터 분석 및<br className="hidden lg:block" />
               스마트 팩토리 통합 관리 시스템
             </p>
