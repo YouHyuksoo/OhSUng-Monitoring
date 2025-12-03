@@ -14,15 +14,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { Search, Download, Trash2, RefreshCw } from "lucide-react";
 import { logger, LogLevel, LogEntry } from "@/lib/logger";
-import { useAuth } from "@/lib/auth-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function LogsPage() {
-  const router = useRouter();
-  const { isAuthenticated } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filter, setFilter] = useState<LogLevel | "all">("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,13 +27,6 @@ export default function LogsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
-
-  // 인증 확인 - 미인증 시 로그인 페이지로 리다이렉트
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/admin/login");
-    }
-  }, [isAuthenticated, router]);
 
   // 로거에서 실제 로그 가져오기 및 실시간 업데이트 구독
   useEffect(() => {
@@ -142,7 +131,7 @@ export default function LogsPage() {
         <div>
           <h1 className="text-3xl font-bold">시스템 로그</h1>
           <p className="text-muted-foreground mt-1">
-            PLC 모니터링 시스템의 실시간 로그를 확인합니다
+            전력/온도 모니터링 시스템의 실시간 로그를 확인합니다
           </p>
         </div>
       </div>

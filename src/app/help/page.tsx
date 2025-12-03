@@ -26,7 +26,7 @@ export default function HelpPage() {
           도움말 및 가이드
         </h1>
         <p className="text-lg text-muted-foreground mt-3">
-          PLC 모니터링 시스템의 사용 방법과 문제 해결 가이드입니다.
+          전력/온도 모니터링 시스템의 사용 방법과 문제 해결 가이드입니다.
         </p>
       </div>
 
@@ -86,7 +86,7 @@ export default function HelpPage() {
                   <Activity className="w-4 h-4 text-red-500" /> 전력 모니터링
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  공장 전체의 유효 전력량을 실시간으로 표시합니다. 그래프의
+                  설비로부터 유효 전력량을 실시간으로 표시합니다. 그래프의
                   높낮이는 전력 사용량의 변화 추이를 나타내며, 우측 상단에 현재
                   수치가 숫자로 표시됩니다.
                 </p>

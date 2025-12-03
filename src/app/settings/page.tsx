@@ -7,24 +7,15 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSettings } from "@/lib/useSettings";
 import { ChartConfig } from "@/lib/settings-store";
-import { useAuth } from "@/lib/auth-context";
 import { Toast, ToastType } from "@/components/ui/toast";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { settings, updateSettings } = useSettings();
-  const { isAuthenticated } = useAuth();
-
-  // 인증 확인 - 미인증 시 로그인 페이지로 리다이렉트
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/admin/login");
-    }
-  }, [isAuthenticated, router]);
   const [localSettings, setLocalSettings] = useState(settings);
   const [isModified, setIsModified] = useState(false);
   const [toast, setToast] = useState<{
@@ -210,7 +201,7 @@ export default function SettingsPage() {
                 id="appTitle"
                 value={localSettings.appTitle}
                 onChange={(e) => handleChange("appTitle", e.target.value)}
-                placeholder="PLC 모니터링"
+                placeholder="전력/온도 모니터링"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <p className="text-xs text-muted-foreground mt-1">

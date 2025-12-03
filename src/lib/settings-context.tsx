@@ -57,7 +57,7 @@ export interface Settings {
 }
 
 const defaultSettings: Settings = {
-  appTitle: "PLC 모니터링",
+  appTitle: "전력/온도 모니터링",
   plcIp: "127.0.0.1",
   plcPort: 502,
   plcType: "demo",

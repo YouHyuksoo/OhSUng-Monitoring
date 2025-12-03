@@ -1,7 +1,7 @@
 /**
  * @file src/app/monitoring/page.tsx
  * @description
- * PLC 모니터링 대시보드 페이지
+ * 전력/온도 모니터링 대시보드 페이지
  * SQLite DB에서 조회한 실시간 데이터 차트를 표시합니다.
  *
  * 아키텍처:
@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { RealtimeChart } from "@/components/Dashboard/RealtimeChart";
 import { PowerUsageChart } from "@/components/Dashboard/PowerUsageChart";
 import { useSettings } from "@/lib/useSettings";
-import { LogOut, Sun, Moon } from "lucide-react";
+import { LogOut, Sun, Moon, Activity } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 
 export default function MonitoringPage() {
@@ -118,6 +118,10 @@ export default function MonitoringPage() {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              {/* 로고 아이콘 */}
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 shadow-md">
+                <Activity className="w-6 h-6 text-white" />
+              </div>
               <h1 className="text-2xl font-bold text-foreground">
                 {settings.appTitle}
               </h1>
@@ -139,12 +143,12 @@ export default function MonitoringPage() {
                     isPollingActive ? "text-green-500" : "text-red-500"
                   }`}
                 >
-                  {isPollingActive ? "Live Data" : "Offline"}
+                  {isPollingActive ? "PLC Live Data" : "Offline"}
                 </span>
               </div>
               {/* 폴링 인터벌 표시 */}
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-800/40 rounded-full text-xs text-blue-100 border border-blue-400/20 shadow-sm backdrop-blur-sm">
-                <span className="font-medium">Interval:</span>
+                <span className="font-medium">Polling Interval:</span>
                 <span className="font-bold text-white tracking-wide">
                   {settings.plcPollingInterval}ms
                 </span>

@@ -24,7 +24,7 @@ const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
  * 주의: client의 defaultSettings과 동기화되어야 함
  */
 const DEFAULT_SETTINGS = {
-  appTitle: "PLC 모니터링",
+  appTitle: "전력/온도 모니터링",
   plcIp: "",
   plcPort: 5000,
   plcType: "demo",

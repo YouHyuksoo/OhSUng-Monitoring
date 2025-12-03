@@ -1,7 +1,7 @@
 /**
  * @file src/app/page.tsx
  * @description
- * PLC 모니터링 시스템 랜딩 페이지 (풀스크린 글래스모피즘 리디자인)
+ * 전력/온도 모니터링 시스템 랜딩 페이지 (풀스크린 글래스모피즘 리디자인)
  *
  * 디자인 변경 사항:
  * - **풀스크린 레이아웃**: 스크롤을 제거하고 `h-screen`으로 화면에 꽉 차게 구성.
@@ -292,7 +292,7 @@ export default function Home() {
 
             {/* 관리자 버튼 */}
             <button
-              onClick={() => handleNavigate("/admin/login")}
+              onClick={() => handleNavigate("/admin")}
               className="group relative h-full glass-card rounded-3xl p-6 flex flex-col justify-between text-left transition-all duration-300 hover:bg-white/5 hover:scale-[1.02] border border-white/10 hover:border-cyan-400/50 overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
