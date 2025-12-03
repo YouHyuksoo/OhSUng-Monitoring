@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSettings } from "@/lib/useSettings";
 import { ChartConfig } from "@/lib/settings-store";
