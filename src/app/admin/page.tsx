@@ -135,7 +135,10 @@ export default function AdminPage() {
 
     const attemptStart = async (): Promise<boolean> => {
       try {
+        console.log("[Admin] Starting polling attempt...");
+
         // 1. 시간별 에너지 폴링 시작
+        console.log("[Admin] Calling /api/energy/hourly...");
         const hourlyResponse = await fetch("/api/energy/hourly", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -152,8 +155,10 @@ export default function AdminPage() {
             `시간별 에너지 폴링 시작 실패: ${hourlyResponse.statusText}`
           );
         }
+        console.log("[Admin] Hourly polling started successfully");
 
         // 2. 실시간 데이터 폴링 시작
+        console.log("[Admin] Calling /api/realtime/polling...");
         const realtimeResponse = await fetch("/api/realtime/polling", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -172,25 +177,38 @@ export default function AdminPage() {
             `실시간 데이터 폴링 시작 실패: ${realtimeResponse.statusText}`
           );
         }
+        console.log("[Admin] Realtime polling started successfully");
 
         // 상태 갱신 대기 (서버가 폴링을 완전히 시작하도록)
+        console.log("[Admin] Waiting 800ms for services to initialize...");
         await new Promise((resolve) => setTimeout(resolve, 800));
 
         // 상태 확인
+        console.log("[Admin] Checking polling status...");
         const statusResponse = await fetch("/api/polling/status");
         if (statusResponse.ok) {
           const data = await statusResponse.json();
+          console.log(`[Admin] Polling status response:`, data);
 
           // 폴링이 실제로 시작되었는지 확인
           if (data.status === "running") {
+            console.log("[Admin] ✅ Polling confirmed as running");
             setIsPollingActive(true);
             return true;
+          } else {
+            console.warn(
+              `[Admin] ⚠️ Status is not 'running': ${data.status}`
+            );
           }
+        } else {
+          console.error(
+            `[Admin] Status API error: ${statusResponse.status} ${statusResponse.statusText}`
+          );
         }
 
         return false;
       } catch (error) {
-        console.error("Failed to start polling:", error);
+        console.error("[Admin] Failed to start polling:", error);
         return false;
       }
     };

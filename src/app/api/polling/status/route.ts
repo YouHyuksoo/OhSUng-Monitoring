@@ -17,12 +17,19 @@ export async function GET() {
     const isHourlyPolling = hourlyEnergyService.isPollingActive();
 
     /**
-     * 진단 로그: 싱글톤 인스턴스 확인 (개발용)
+     * 진단 로그: 싱글톤 인스턴스 확인
      * - 배포 환경에서 상태 불일치 문제 진단
      */
+    console.log(
+      `[API/polling/status] Realtime: ${isRealtimePolling}, Hourly: ${isHourlyPolling}, Status: ${
+        isRealtimePolling || isHourlyPolling ? "running" : "stopped"
+      }`
+    );
+
+    // globalThis에 저장된 인스턴스 확인
     if (process.env.NODE_ENV === "production") {
       console.log(
-        `[API/polling/status] Realtime: ${isRealtimePolling}, Hourly: ${isHourlyPolling}`
+        `[API/polling/status] Realtime instance exists: ${globalThis.__realtimeDataServiceInstance !== undefined}, Hourly instance exists: ${globalThis.__hourlyEnergyServiceInstance !== undefined}`
       );
     }
 
