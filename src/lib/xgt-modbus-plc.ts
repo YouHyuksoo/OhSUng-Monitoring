@@ -61,7 +61,10 @@ export class XgtModbusPLC implements PLCConnector {
     ip: string,
     port: number,
     slaveId: number = 1,
-    addressMapping: ModbusAddressMappingConfig = { dAddressBase: 0, modbusOffset: 0 }
+    addressMapping: ModbusAddressMappingConfig = {
+      dAddressBase: 0,
+      modbusOffset: 0,
+    }
   ) {
     this.ip = ip;
     this.port = port;
@@ -144,13 +147,16 @@ export class XgtModbusPLC implements PLCConnector {
     const dAddressValue = parseInt(match[1]);
 
     // 설정된 매핑 규칙 적용
-    const modbusOffset = dAddressValue - this.addressMapping.dAddressBase + this.addressMapping.modbusOffset;
+    const modbusOffset =
+      dAddressValue -
+      this.addressMapping.dAddressBase +
+      this.addressMapping.modbusOffset;
 
     // 디버그 모드일 때만 상세 매핑 로그 출력 (기본은 비활성화 - 반복 제거)
-    if (process.env.DEBUG_MODBUS_MAPPING === 'true') {
+    if (process.env.DEBUG_MODBUS_MAPPING === "true") {
       console.log(
         `Address mapping: D${dAddressValue} → Modbus offset ${modbusOffset} ` +
-        `(base=${this.addressMapping.dAddressBase}, offset=${this.addressMapping.modbusOffset})`
+          `(base=${this.addressMapping.dAddressBase}, offset=${this.addressMapping.modbusOffset})`
       );
     }
 
@@ -173,7 +179,8 @@ export class XgtModbusPLC implements PLCConnector {
         await this.connect();
         console.log(`[XgtModbusPLC] ✅ Connected successfully`);
       } catch (e) {
-        const errorMsg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+        const errorMsg =
+          e instanceof Error ? `${e.name}: ${e.message}` : String(e);
         console.error(`[XgtModbusPLC] ❌ Connection failed - ${errorMsg}`);
         // 연결 실패 시 모든 주소에 0 반환 (크래시 방지)
         const fallback: PLCData = {};
@@ -191,24 +198,55 @@ export class XgtModbusPLC implements PLCConnector {
 
           // Modbus readHoldingRegisters (FC 3): 홀딩 레지스터 읽기
           try {
-            const data = await (this.client as any).readHoldingRegistersAsync(regAddr, 1);
-            result[addr] = Array.isArray(data) ? (data[0] || 0) : (data || 0);
+            // modbus-serial의 readHoldingRegisters는 { data: [val1, val2...], buffer: Buffer } 형태의 객체를 반환함
+            const res = await (this.client as any).readHoldingRegistersAsync(
+              regAddr,
+              1
+            );
+
+            // 응답 구조 확인 및 값 추출
+            if (res && Array.isArray(res.data) && res.data.length > 0) {
+              result[addr] = res.data[0];
+            } else if (Array.isArray(res)) {
+              // 혹시 모를 배열 반환 대응
+              result[addr] = res[0];
+            } else {
+              console.warn(
+                `[XgtModbusPLC] Unexpected response format for ${addr}:`,
+                JSON.stringify(res)
+              );
+              result[addr] = 0;
+            }
           } catch (e) {
             // 비동기 메서드가 없으면 콜백 기반으로 시도
             const values = await new Promise<number[]>((resolve, reject) => {
-              (this.client as any).readHoldingRegisters(regAddr, 1, (err: any, data: any) => {
-                if (err) {
-                  reject(err);
-                } else {
-                  resolve(Array.isArray(data) ? data : [data || 0]);
+              (this.client as any).readHoldingRegisters(
+                regAddr,
+                1,
+                (err: any, data: any) => {
+                  if (err) {
+                    reject(err);
+                  } else {
+                    // 콜백의 data도 동일한 구조일 수 있음
+                    if (data && Array.isArray(data.data)) {
+                      resolve(data.data);
+                    } else if (Array.isArray(data)) {
+                      resolve(data);
+                    } else {
+                      resolve([0]);
+                    }
+                  }
                 }
-              });
+              );
             });
             result[addr] = values[0] || 0;
           }
         } catch (e) {
-          const errorMsg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
-          console.error(`[XgtModbusPLC] ❌ Read failed for ${addr} - ${errorMsg}`);
+          const errorMsg =
+            e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+          console.error(
+            `[XgtModbusPLC] ❌ Read failed for ${addr} - ${errorMsg}`
+          );
           result[addr] = 0; // Fallback
         }
       })
