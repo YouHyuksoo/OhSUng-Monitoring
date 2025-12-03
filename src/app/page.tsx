@@ -29,14 +29,85 @@ import {
   X,
 } from "lucide-react";
 
+/**
+ * 폴링 상태 인터페이스
+ */
+interface PollingStatus {
+  status: string;
+  services: {
+    realtime: { isPolling: boolean; lastUpdate: string; message: string };
+    hourly: { isPolling: boolean; lastUpdate: string; message: string };
+  };
+  timestamp: number;
+}
+
 export default function Home() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
+  const [pollingStatus, setPollingStatus] = useState<PollingStatus | null>(null);
+  const [systemStatus, setSystemStatus] = useState({
+    temperature: "--",
+    voltage: "--",
+    isPollingActive: false,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  /**
+   * 폴링 서비스 상태 조회
+   */
+  const fetchPollingStatus = async () => {
+    try {
+      const response = await fetch("/api/polling/status");
+      if (response.ok) {
+        const data = await response.json();
+        setPollingStatus(data);
+        setSystemStatus((prev) => ({
+          ...prev,
+          isPollingActive: data.status === "running",
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to fetch polling status:", error);
+    }
+  };
+
+  /**
+   * 최근 실시간 데이터 조회 (온도, 전력)
+   */
+  const fetchRealtimeData = async () => {
+    try {
+      const response = await fetch("/api/realtime/data?limit=1");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.data && data.data.length > 0) {
+          const latestData = data.data[0];
+          setSystemStatus((prev) => ({
+            ...prev,
+            temperature: latestData.D400 || "--",
+            voltage: latestData.D410 || "--",
+          }));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch realtime data:", error);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
+    setIsLoading(true);
+
+    // 초기 데이터 로드
+    fetchPollingStatus();
+    fetchRealtimeData();
+    setIsLoading(false);
+
+    // 5초마다 폴링 상태 갱신
+    const pollingInterval = setInterval(fetchPollingStatus, 5000);
+
+    return () => clearInterval(pollingInterval);
   }, []);
 
   if (!mounted) {
@@ -258,15 +329,29 @@ export default function Home() {
             </button>
           </div>
 
-          {/* 하단 상태 요약 카드 (작은 카드 3개) */}
+          {/* 하단 상태 요약 카드 (작은 카드 3개) - 백엔드 폴링 서비스 상태 */}
           <div className="glass-card rounded-3xl p-5 border border-white/5 bg-black/20 backdrop-blur-xl">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-medium text-slate-400">
                 System Status
               </span>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-400">Online</span>
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    systemStatus.isPollingActive
+                      ? "bg-emerald-500 animate-pulse"
+                      : "bg-red-500"
+                  }`}
+                />
+                <span
+                  className={`text-xs ${
+                    systemStatus.isPollingActive
+                      ? "text-emerald-400"
+                      : "text-red-400"
+                  }`}
+                >
+                  {systemStatus.isPollingActive ? "Online" : "Offline"}
+                </span>
               </div>
             </div>
 
@@ -274,22 +359,36 @@ export default function Home() {
               {/* 온도 */}
               <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
                 <Thermometer className="w-5 h-5 text-rose-400 mx-auto mb-2" />
-                <div className="text-lg font-bold text-white">24°C</div>
+                <div className="text-lg font-bold text-white">
+                  {isLoading ? (
+                    <span className="text-slate-400">--</span>
+                  ) : (
+                    `${systemStatus.temperature}°C`
+                  )}
+                </div>
                 <div className="text-xs text-slate-500">Temperature</div>
               </div>
 
               {/* 전력 */}
               <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
                 <Zap className="w-5 h-5 text-yellow-400 mx-auto mb-2" />
-                <div className="text-lg font-bold text-white">220V</div>
+                <div className="text-lg font-bold text-white">
+                  {isLoading ? (
+                    <span className="text-slate-400">--</span>
+                  ) : (
+                    `${systemStatus.voltage}V`
+                  )}
+                </div>
                 <div className="text-xs text-slate-500">Voltage</div>
               </div>
 
-              {/* DB */}
+              {/* 폴링 상태 */}
               <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
-                <Database className="w-5 h-5 text-blue-400 mx-auto mb-2" />
-                <div className="text-lg font-bold text-white">OK</div>
-                <div className="text-xs text-slate-500">Database</div>
+                <Activity className="w-5 h-5 text-blue-400 mx-auto mb-2" />
+                <div className="text-lg font-bold text-white">
+                  {systemStatus.isPollingActive ? "Active" : "Stopped"}
+                </div>
+                <div className="text-xs text-slate-500">Polling Service</div>
               </div>
             </div>
           </div>
