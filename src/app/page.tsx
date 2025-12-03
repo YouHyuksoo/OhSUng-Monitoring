@@ -61,7 +61,9 @@ export default function Home() {
       if (response.ok) {
         const data = await response.json();
         setSystemStatus({
-          realtimeStatus: data.services.realtime.isPolling ? "online" : "offline",
+          realtimeStatus: data.services.realtime.isPolling
+            ? "online"
+            : "offline",
           hourlyStatus: data.services.hourly.isPolling ? "online" : "offline",
           isPollingActive: data.status === "running",
         });
@@ -128,7 +130,7 @@ export default function Home() {
   };
 
   return (
-    <div className="h-screen w-full relative overflow-hidden bg-[#020617] flex flex-col">
+    <div className="h-full w-full relative overflow-hidden bg-[#020617] flex flex-col">
       {/* 업그레이드 확인 다이얼로그 */}
       {showUpgradeConfirm && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -237,7 +239,7 @@ export default function Home() {
       </div>
 
       {/* 메인 콘텐츠 컨테이너 (좌우 분할) */}
-      <div className="relative z-10 flex-1 w-full max-w-[1600px] mx-auto px-6 lg:px-12 py-4 lg:py-6 flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-16 overflow-hidden">
+      <div className="relative z-10 flex-1 w-full max-w-[1600px] mx-auto px-6 lg:px-12 py-2 lg:py-4 flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-12 overflow-hidden">
         {/* 좌측: 브랜드 영역 */}
         <div className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-left space-y-4 lg:space-y-6">
           {/* 3D 글래스 구체 로고 */}
@@ -338,7 +340,9 @@ export default function Home() {
               <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
                 <Activity className="w-5 h-5 text-blue-400 mx-auto mb-2" />
                 <div className="text-lg font-bold text-white">
-                  {systemStatus.realtimeStatus === "online" ? "Running" : "Stopped"}
+                  {systemStatus.realtimeStatus === "online"
+                    ? "Running"
+                    : "Stopped"}
                 </div>
                 <div className="text-xs text-slate-500">Realtime Polling</div>
               </div>
@@ -347,7 +351,9 @@ export default function Home() {
               <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
                 <Zap className="w-5 h-5 text-yellow-400 mx-auto mb-2" />
                 <div className="text-lg font-bold text-white">
-                  {systemStatus.hourlyStatus === "online" ? "Running" : "Stopped"}
+                  {systemStatus.hourlyStatus === "online"
+                    ? "Running"
+                    : "Stopped"}
                 </div>
                 <div className="text-xs text-slate-500">Hourly Energy</div>
               </div>
@@ -370,7 +376,9 @@ export default function Home() {
         <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* 좌측: 회사명 */}
           <div className="text-sm text-slate-400">
-            <span className="font-semibold text-slate-300">Jisung Solution Works</span>
+            <span className="font-semibold text-slate-300">
+              Jisung Solution Works
+            </span>
           </div>
 
           {/* 우측: 버전 */}
