@@ -18,6 +18,7 @@ import { McPLC } from "./mc-plc";
 import { XgtModbusPLC } from "./xgt-modbus-plc";
 import { plc as mockPlc } from "./mock-plc";
 import { PLCConnector } from "./plc-connector";
+import { setRealtimePolling } from "./polling-state";
 
 /**
  * 실시간 데이터 포인트
@@ -125,6 +126,9 @@ class RealtimeDataService {
       this.pollData();
     }, interval);
 
+    // ✅ 파일에 폴링 상태 저장 (프로세스간 공유)
+    setRealtimePolling(true);
+
     console.log(
       `[RealtimeDataService] Started polling ${addresses.length} addresses with interval ${interval}ms`
     );
@@ -139,6 +143,10 @@ class RealtimeDataService {
       this.pollingInterval = null;
     }
     this.memoryCache.clear();
+
+    // ✅ 파일에 폴링 상태 저장 (프로세스간 공유)
+    setRealtimePolling(false);
+
     console.log("[RealtimeDataService] Polling stopped");
   }
 

@@ -22,6 +22,7 @@ import { McPLC } from "./mc-plc";
 import { XgtModbusPLC } from "./xgt-modbus-plc";
 import { plc as mockPlc } from "./mock-plc";
 import { PLCConnector } from "./plc-connector";
+import { setHourlyPolling } from "./polling-state";
 
 /**
  * 날짜별 에너지 데이터 (단일 행)
@@ -163,6 +164,9 @@ class HourlyEnergyService {
     // 다음 정각 스케줄링
     this.scheduleNextPoll();
 
+    // ✅ 파일에 폴링 상태 저장 (프로세스간 공유)
+    setHourlyPolling(true);
+
     console.log(`[HourlyEnergyService] Started for ${ip}:${port}`);
   }
 
@@ -174,6 +178,9 @@ class HourlyEnergyService {
       clearTimeout(this.pollingInterval);
       this.pollingInterval = null;
     }
+
+    // ✅ 파일에 폴링 상태 저장 (프로세스간 공유)
+    setHourlyPolling(false);
   }
 
   /**

@@ -7,14 +7,14 @@
  */
 
 import { NextResponse } from "next/server";
-import { realtimeDataService } from "@/lib/realtime-data-service";
-import { hourlyEnergyService } from "@/lib/hourly-energy-service";
+import { getPollingState } from "@/lib/polling-state";
 
 export async function GET() {
   try {
-    // 현재 폴링 상태 조회
-    const isRealtimePolling = realtimeDataService.isPollingActive();
-    const isHourlyPolling = hourlyEnergyService.isPollingActive();
+    // ✅ 파일 기반 상태 조회 (프로세스간 공유)
+    const state = getPollingState();
+    const isRealtimePolling = state.realtimePolling;
+    const isHourlyPolling = state.hourlyPolling;
 
     /**
      * 진단 로그: 싱글톤 인스턴스 확인
