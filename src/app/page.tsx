@@ -48,14 +48,15 @@ export default function Home() {
   const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
   const [pollingStatus, setPollingStatus] = useState<PollingStatus | null>(null);
   const [systemStatus, setSystemStatus] = useState({
-    temperature: "--",
-    voltage: "--",
+    realtimeStatus: "offline", // "online" 또는 "offline"
+    hourlyStatus: "offline", // "online" 또는 "offline"
     isPollingActive: false,
   });
-  const [isLoading, setIsLoading] = useState(true);
 
   /**
    * 폴링 서비스 상태 조회
+   * - 실시간 데이터 폴링 상태
+   * - 시간별 에너지 폴링 상태
    */
   const fetchPollingStatus = async () => {
     try {
@@ -63,46 +64,27 @@ export default function Home() {
       if (response.ok) {
         const data = await response.json();
         setPollingStatus(data);
-        setSystemStatus((prev) => ({
-          ...prev,
+        setSystemStatus({
+          realtimeStatus: data.services.realtime.isPolling ? "online" : "offline",
+          hourlyStatus: data.services.hourly.isPolling ? "online" : "offline",
           isPollingActive: data.status === "running",
-        }));
+        });
       }
     } catch (error) {
       console.error("Failed to fetch polling status:", error);
-    }
-  };
-
-  /**
-   * 최근 실시간 데이터 조회 (온도, 전력)
-   */
-  const fetchRealtimeData = async () => {
-    try {
-      const response = await fetch("/api/realtime/data?limit=1");
-      if (response.ok) {
-        const data = await response.json();
-        if (data.data && data.data.length > 0) {
-          const latestData = data.data[0];
-          setSystemStatus((prev) => ({
-            ...prev,
-            temperature: latestData.D400 || "--",
-            voltage: latestData.D410 || "--",
-          }));
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch realtime data:", error);
+      setSystemStatus({
+        realtimeStatus: "offline",
+        hourlyStatus: "offline",
+        isPollingActive: false,
+      });
     }
   };
 
   useEffect(() => {
     setMounted(true);
-    setIsLoading(true);
 
     // 초기 데이터 로드
     fetchPollingStatus();
-    fetchRealtimeData();
-    setIsLoading(false);
 
     // 5초마다 폴링 상태 갱신
     const pollingInterval = setInterval(fetchPollingStatus, 5000);
@@ -356,39 +338,31 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              {/* 온도 */}
-              <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
-                <Thermometer className="w-5 h-5 text-rose-400 mx-auto mb-2" />
-                <div className="text-lg font-bold text-white">
-                  {isLoading ? (
-                    <span className="text-slate-400">--</span>
-                  ) : (
-                    `${systemStatus.temperature}°C`
-                  )}
-                </div>
-                <div className="text-xs text-slate-500">Temperature</div>
-              </div>
-
-              {/* 전력 */}
-              <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
-                <Zap className="w-5 h-5 text-yellow-400 mx-auto mb-2" />
-                <div className="text-lg font-bold text-white">
-                  {isLoading ? (
-                    <span className="text-slate-400">--</span>
-                  ) : (
-                    `${systemStatus.voltage}V`
-                  )}
-                </div>
-                <div className="text-xs text-slate-500">Voltage</div>
-              </div>
-
-              {/* 폴링 상태 */}
+              {/* 실시간 데이터 폴링 */}
               <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
                 <Activity className="w-5 h-5 text-blue-400 mx-auto mb-2" />
                 <div className="text-lg font-bold text-white">
-                  {systemStatus.isPollingActive ? "Active" : "Stopped"}
+                  {systemStatus.realtimeStatus === "online" ? "Running" : "Stopped"}
                 </div>
-                <div className="text-xs text-slate-500">Polling Service</div>
+                <div className="text-xs text-slate-500">Realtime Polling</div>
+              </div>
+
+              {/* 시간별 에너지 폴링 */}
+              <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
+                <Zap className="w-5 h-5 text-yellow-400 mx-auto mb-2" />
+                <div className="text-lg font-bold text-white">
+                  {systemStatus.hourlyStatus === "online" ? "Running" : "Stopped"}
+                </div>
+                <div className="text-xs text-slate-500">Hourly Energy</div>
+              </div>
+
+              {/* 전체 상태 */}
+              <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
+                <Database className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
+                <div className="text-lg font-bold text-white">
+                  {systemStatus.isPollingActive ? "Online" : "Offline"}
+                </div>
+                <div className="text-xs text-slate-500">Overall Status</div>
               </div>
             </div>
           </div>
