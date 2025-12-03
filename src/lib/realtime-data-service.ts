@@ -386,16 +386,25 @@ class RealtimeDataService {
 }
 
 /**
- * 싱글톤 인스턴스 관리
+ * 싱글톤 인스턴스 관리 (Singleton Factory Pattern)
  * - 전역 변수에 저장하여 서버 인스턴스 재시작 전까지 유지
  * - 개발/배포 환경 모두에서 동일한 인스턴스 사용
+ * - globalThis 사용으로 Next.js 모듈 캐싱 문제 해결
  */
 declare global {
-  var realtimeDataService: RealtimeDataService | undefined;
+  var __realtimeDataServiceInstance: RealtimeDataService | undefined;
 }
 
-export const realtimeDataService =
-  global.realtimeDataService || new RealtimeDataService();
+/**
+ * 싱글톤 인스턴스 생성/반환
+ * - 첫 호출: 새 인스턴스 생성
+ * - 이후 호출: 기존 인스턴스 반환
+ */
+function getRealtimeDataServiceInstance(): RealtimeDataService {
+  if (!globalThis.__realtimeDataServiceInstance) {
+    globalThis.__realtimeDataServiceInstance = new RealtimeDataService();
+  }
+  return globalThis.__realtimeDataServiceInstance;
+}
 
-// 개발/배포 환경 모두에서 전역 저장 (인스턴스 재사용)
-global.realtimeDataService = realtimeDataService;
+export const realtimeDataService = getRealtimeDataServiceInstance();
