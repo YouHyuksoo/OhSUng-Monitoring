@@ -123,87 +123,185 @@ export default function AdminPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // 폴링 서비스 시작
+  /**
+   * 폴링 서비스 시작
+   * - 재시도 로직: 최대 3회 재시도 (서버 지연으로 인한 상태 불일치 방지)
+   * - 재시도 간격: 1초
+   */
   const handleStartPolling = async () => {
     setIsStartingPolling(true);
+    let retries = 0;
+    const maxRetries = 3;
+
+    const attemptStart = async (): Promise<boolean> => {
+      try {
+        // 1. 시간별 에너지 폴링 시작
+        const hourlyResponse = await fetch("/api/energy/hourly", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ip: settings.plcIp,
+            port: settings.plcPort,
+            plcType: settings.plcType,
+            modbusAddressMapping: settings.modbusAddressMapping,
+          }),
+        });
+
+        if (!hourlyResponse.ok) {
+          throw new Error(
+            `시간별 에너지 폴링 시작 실패: ${hourlyResponse.statusText}`
+          );
+        }
+
+        // 2. 실시간 데이터 폴링 시작
+        const realtimeResponse = await fetch("/api/realtime/polling", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ip: settings.plcIp,
+            port: settings.plcPort,
+            interval: settings.plcPollingInterval,
+            chartConfigs: settings.chartConfigs,
+            plcType: settings.plcType,
+            modbusAddressMapping: settings.modbusAddressMapping,
+          }),
+        });
+
+        if (!realtimeResponse.ok) {
+          throw new Error(
+            `실시간 데이터 폴링 시작 실패: ${realtimeResponse.statusText}`
+          );
+        }
+
+        // 상태 갱신 대기 (서버가 폴링을 완전히 시작하도록)
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        // 상태 확인
+        const statusResponse = await fetch("/api/polling/status");
+        if (statusResponse.ok) {
+          const data = await statusResponse.json();
+
+          // 폴링이 실제로 시작되었는지 확인
+          if (data.status === "running") {
+            setIsPollingActive(true);
+            return true;
+          }
+        }
+
+        return false;
+      } catch (error) {
+        console.error("Failed to start polling:", error);
+        return false;
+      }
+    };
+
     try {
-      // 1. 시간별 에너지 폴링 시작
-      const hourlyResponse = await fetch("/api/energy/hourly", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ip: settings.plcIp,
-          port: settings.plcPort,
-          plcType: settings.plcType,
-          modbusAddressMapping: settings.modbusAddressMapping,
-        }),
-      });
+      // 폴링 시작 시도
+      while (retries < maxRetries) {
+        const success = await attemptStart();
+        if (success) {
+          console.log("[Admin] Polling started successfully");
+          return;
+        }
 
-      if (!hourlyResponse.ok) {
-        throw new Error(
-          `시간별 에너지 폴링 시작 실패: ${hourlyResponse.statusText}`
-        );
+        retries++;
+        if (retries < maxRetries) {
+          console.warn(
+            `[Admin] Polling start failed, retry ${retries}/${maxRetries}`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
 
-      // 2. 실시간 데이터 폴링 시작
-      const realtimeResponse = await fetch("/api/realtime/polling", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ip: settings.plcIp,
-          port: settings.plcPort,
-          interval: settings.plcPollingInterval, // PLC 폴링 주기 사용
-          chartConfigs: settings.chartConfigs,
-          plcType: settings.plcType,
-          modbusAddressMapping: settings.modbusAddressMapping,
-        }),
-      });
-
-      if (!realtimeResponse.ok) {
-        throw new Error(
-          `실시간 데이터 폴링 시작 실패: ${realtimeResponse.statusText}`
-        );
-      }
-
-      // 상태 갱신 (약간의 지연을 줘서 서버가 폴링을 완전히 시작하도록 대기)
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await checkPollingStatus();
-      setIsPollingActive(true);
+      // 최대 재시도 초과
+      throw new Error(
+        "폴링 서비스 시작 실패: 서버 응답 없음 (최대 재시도 초과)"
+      );
     } catch (error) {
       console.error("Failed to start polling:", error);
       alert(
         "폴링 서비스 시작 실패: " +
           (error instanceof Error ? error.message : "Unknown error")
       );
+      // 실패 시 상태 갱신
+      await checkPollingStatus();
     } finally {
       setIsStartingPolling(false);
     }
   };
 
-  // 폴링 서비스 중지
+  /**
+   * 폴링 서비스 중지
+   * - 재시도 로직: 최대 3회 재시도
+   * - 재시도 간격: 1초
+   */
   const handleStopPolling = async () => {
     setIsStoppingPolling(true);
-    try {
-      const response = await fetch("/api/polling/stop", {
-        method: "POST",
-      });
+    let retries = 0;
+    const maxRetries = 3;
 
-      if (!response.ok) {
-        throw new Error(
-          `폴링 서비스 중지 실패: ${response.statusText}`
-        );
+    const attemptStop = async (): Promise<boolean> => {
+      try {
+        const response = await fetch("/api/polling/stop", {
+          method: "POST",
+        });
+
+        if (!response.ok) {
+          throw new Error(`폴링 서비스 중지 실패: ${response.statusText}`);
+        }
+
+        // 상태 갱신 대기 (서버가 폴링을 완전히 중지하도록)
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        // 상태 확인
+        const statusResponse = await fetch("/api/polling/status");
+        if (statusResponse.ok) {
+          const data = await statusResponse.json();
+
+          // 폴링이 실제로 중지되었는지 확인
+          if (data.status === "stopped") {
+            setIsPollingActive(false);
+            return true;
+          }
+        }
+
+        return false;
+      } catch (error) {
+        console.error("Failed to stop polling:", error);
+        return false;
+      }
+    };
+
+    try {
+      // 폴링 중지 시도
+      while (retries < maxRetries) {
+        const success = await attemptStop();
+        if (success) {
+          console.log("[Admin] Polling stopped successfully");
+          return;
+        }
+
+        retries++;
+        if (retries < maxRetries) {
+          console.warn(
+            `[Admin] Polling stop failed, retry ${retries}/${maxRetries}`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
 
-      // 상태 갱신 (약간의 지연을 줘서 서버가 폴링을 완전히 중지하도록 대기)
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await checkPollingStatus();
-      setIsPollingActive(false);
+      // 최대 재시도 초과
+      throw new Error(
+        "폴링 서비스 중지 실패: 서버 응답 없음 (최대 재시도 초과)"
+      );
     } catch (error) {
       console.error("Failed to stop polling:", error);
       alert(
         "폴링 서비스 중지 실패: " +
           (error instanceof Error ? error.message : "Unknown error")
       );
+      // 실패 시 상태 갱신
+      await checkPollingStatus();
     } finally {
       setIsStoppingPolling(false);
     }
