@@ -64,7 +64,7 @@ export default function MonitoringPage() {
         const res = await fetch("/api/polling/status");
         if (res.ok) {
           const data = await res.json();
-          setIsPollingActive(data.isRunning || false);
+          setIsPollingActive(data.status === "running");
         } else {
           setIsPollingActive(false);
         }
@@ -146,7 +146,7 @@ export default function MonitoringPage() {
               <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-800/40 rounded-full text-xs text-blue-100 border border-blue-400/20 shadow-sm backdrop-blur-sm">
                 <span className="font-medium">Interval:</span>
                 <span className="font-bold text-white tracking-wide">
-                  {settings.pollingInterval}ms
+                  {settings.plcPollingInterval}ms
                 </span>
               </div>
               {/* 테마 변경 버튼 */}
