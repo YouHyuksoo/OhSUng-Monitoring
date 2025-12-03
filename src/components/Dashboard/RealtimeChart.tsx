@@ -29,6 +29,7 @@ import {
   Filler,
   ChartOptions,
 } from "chart.js";
+import { Maximize2 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { logger } from "@/lib/logger";
 import { useSettings } from "@/lib/useSettings";
@@ -68,6 +69,7 @@ interface RealtimeChartProps {
   yMax?: number | "auto"; // Y축 최대값
   dataLimit?: number; // 표시할 데이터 개수 (개수 기준)
   dataHours?: number; // 표시할 데이터 시간 범위 (시간 기준)
+  onMaximize?: () => void; // 크게보기 콜백 함수 (선택적)
 }
 
 export function RealtimeChart({
@@ -83,6 +85,7 @@ export function RealtimeChart({
   yMax = "auto",
   dataLimit,
   dataHours,
+  onMaximize,
 }: RealtimeChartProps) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [isAlarm, setIsAlarm] = useState(false);
@@ -341,12 +344,12 @@ export function RealtimeChart({
 
   return (
     <div
-      className={`w-full h-full relative rounded-lg overflow-hidden ${borderClass} bg-card`}
+      className={`w-full h-full relative rounded-lg overflow-hidden ${borderClass} bg-card flex flex-col`}
     >
-      {/* 헤더 영역: 타이틀 및 알람 배지 */}
-      <div className="absolute top-0 left-0 right-0 p-2 flex justify-between items-start z-10 pointer-events-none">
+      {/* 타이틀 영역 - 윈도우 타이틀 바처럼 */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-slate-700 to-slate-600 dark:from-slate-800 dark:to-slate-700 flex-none shadow-sm">
         <div className="flex items-center gap-2">
-          <h3 className="text-xs font-bold text-foreground/80 bg-background/50 px-2 py-0.5 rounded backdrop-blur-sm">
+          <h3 className="text-sm font-bold text-white">
             {title}
           </h3>
           {isAlarm && (
@@ -365,22 +368,38 @@ export function RealtimeChart({
           )}
         </div>
 
-        {/* 현재값/설정값 표시 */}
-        <div className="flex flex-col gap-1 items-end">
-          <div className="bg-black/70 text-white px-2 py-0.5 rounded text-xs font-bold backdrop-blur-sm">
-            측정: {currentValue.toFixed(1)}
-            {unit}
-          </div>
-          {setAddress && (
-            <div className="bg-blue-600/90 text-white px-2 py-0.5 rounded text-xs font-bold backdrop-blur-sm">
-              설정: {setValue.toFixed(1)}
-              {unit}
-            </div>
-          )}
-        </div>
+        {/* 크게보기 버튼 */}
+        {onMaximize && (
+          <button
+            onClick={onMaximize}
+            className="flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded w-6 h-6 transition-colors shadow-sm"
+            title="크게보기"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
-      <div className="w-full h-full p-2 pt-10">
+      {/* 측정값/설정값 표시 영역 */}
+      <div className="flex gap-2 px-4 py-2 bg-background/20 backdrop-blur-sm flex-none border-b border-border/30">
+        <div className="flex-1">
+          <div className="text-xs text-muted-foreground mb-1">측정온도</div>
+          <div className="text-lg font-bold text-foreground">
+            {currentValue.toFixed(1)}<span className="text-sm ml-0.5">{unit}</span>
+          </div>
+        </div>
+        {setAddress && (
+          <div className="flex-1">
+            <div className="text-xs text-muted-foreground mb-1">설정온도</div>
+            <div className="text-lg font-bold text-blue-500">
+              {setValue.toFixed(1)}<span className="text-sm ml-0.5">{unit}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 차트 영역 */}
+      <div className="flex-1 p-2 min-h-0">
         <Line ref={chartRef} data={chartData} options={options} />
       </div>
     </div>

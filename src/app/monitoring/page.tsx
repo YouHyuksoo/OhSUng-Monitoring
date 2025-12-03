@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { RealtimeChart } from "@/components/Dashboard/RealtimeChart";
 import { PowerUsageChart } from "@/components/Dashboard/PowerUsageChart";
 import { useSettings } from "@/lib/useSettings";
-import { LogOut, Sun, Moon, Activity } from "lucide-react";
+import { LogOut, Sun, Moon, Activity, X } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 
 export default function MonitoringPage() {
@@ -25,6 +25,8 @@ export default function MonitoringPage() {
   const { settings } = useSettings();
   const { theme, setTheme } = useTheme();
   const [isPollingActive, setIsPollingActive] = useState(false);
+  const [maximizedChartId, setMaximizedChartId] = useState<string | null>(null);
+  const [maximizedConfig, setMaximizedConfig] = useState<any>(null);
 
   /**
    * 테마 토글 핸들러
@@ -32,6 +34,14 @@ export default function MonitoringPage() {
    */
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
+  };
+
+  /**
+   * 차트 크게보기 핸들러
+   */
+  const handleChartMaximize = (chartId: string, chartConfig: any) => {
+    setMaximizedChartId(chartId);
+    setMaximizedConfig(chartConfig);
   };
 
   /**
@@ -251,6 +261,7 @@ export default function MonitoringPage() {
                     yMin={0}
                     yMax={80}
                     dataLimit={settings.tempDataLimit}
+                    onMaximize={() => handleChartMaximize(config.id, { ...config, type: "sujul" })}
                   />
                 </div>
               ))}
@@ -270,6 +281,7 @@ export default function MonitoringPage() {
                     yMin={0}
                     yMax={80}
                     dataLimit={settings.tempDataLimit}
+                    onMaximize={() => handleChartMaximize(config.id, { ...config, type: "yeolpung" })}
                   />
                 </div>
               ))}
@@ -277,6 +289,67 @@ export default function MonitoringPage() {
           </div>
         </div>
       </div>
+
+      {/* 차트 크게보기 모달 */}
+      {maximizedChartId && maximizedConfig && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300"
+          onClick={() => setMaximizedChartId(null)}
+        >
+          <div
+            className="w-full h-full max-w-6xl max-h-[90vh] bg-card rounded-2xl shadow-2xl border border-border flex flex-col overflow-hidden animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className="flex items-center justify-between p-6 border-b border-border flex-none">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">
+                  {maximizedConfig.name}
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {maximizedConfig.type === "sujul"
+                    ? `수절 건조로 | 임계값: ${SUJUL_TEMP_MIN}~${SUJUL_TEMP_MAX}°C`
+                    : `열풍 건조로 | 임계값: ${YEOLPUNG_TEMP_MIN}~${YEOLPUNG_TEMP_MAX}°C`}
+                </p>
+              </div>
+              <button
+                onClick={() => setMaximizedChartId(null)}
+                className="p-2 rounded-full bg-background/80 hover:bg-accent text-foreground transition-colors"
+                title="닫기"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* 차트 영역 */}
+            <div className="flex-1 p-6 w-full h-full min-h-0">
+              <RealtimeChart
+                address={maximizedConfig.address}
+                setAddress={maximizedConfig.setAddress}
+                title={maximizedConfig.name}
+                unit="°C"
+                color={
+                  maximizedConfig.type === "yeolpung" ? "#8b5cf6" : "#ef4444"
+                }
+                minThreshold={
+                  maximizedConfig.type === "yeolpung"
+                    ? YEOLPUNG_TEMP_MIN
+                    : SUJUL_TEMP_MIN
+                }
+                maxThreshold={
+                  maximizedConfig.type === "yeolpung"
+                    ? YEOLPUNG_TEMP_MAX
+                    : SUJUL_TEMP_MAX
+                }
+                bordered={false}
+                yMin={0}
+                yMax={80}
+                dataLimit={settings.tempDataLimit * 3}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

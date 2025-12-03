@@ -7,8 +7,8 @@ import { PLCConnectionProvider } from "@/lib/plc-connection-context";
 import { SettingsInitializer } from "@/components/settings-initializer";
 
 export const metadata: Metadata = {
-  title: "PLC Monitoring System",
-  description: "Real-time PLC Monitoring Dashboard",
+  title: "전력/온도 모니터링",
+  description: "실시간 전력/온도 모니터링 대시보드",
 };
 
 export default function RootLayout({
