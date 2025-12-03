@@ -5,38 +5,7 @@ import { XgtModbusPLC } from "@/lib/xgt-modbus-plc";
 import { PLCConnector } from "@/lib/plc-connector";
 import { pollingService } from "@/lib/plc-polling-service";
 
-/**
- * PLC 연결 풀 관리 클래스
- * - 동일한 IP:Port에 대한 연결 재사용
- * - 타임아웃 기반 연결 정리
- * - 동시 요청 제어 (Mutex 패턴)
- * - Mitsubishi MC와 LS Modbus TCP 모두 지원
- */
-interface CachedConnection {
-  plc: PLCConnector;
-  lastUsed: number;
-  isReading: boolean;
-}
-
-const connections = new Map<string, CachedConnection>();
-const CONNECTION_TIMEOUT = 5 * 60 * 1000; // 5분
 const REQUEST_TIMEOUT = 10 * 1000; // 10초
-
-// 주기적으로 오래된 연결 정리
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, conn] of connections.entries()) {
-    if (now - conn.lastUsed > CONNECTION_TIMEOUT && !conn.isReading) {
-      try {
-        conn.plc.disconnect();
-        connections.delete(key);
-        console.log(`Cleaned up stale connection: ${key}`);
-      } catch (e) {
-        console.error(`Failed to clean connection ${key}:`, e);
-      }
-    }
-  }
-}, 60 * 1000); // 1분마다 정리
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   const timeoutPromise = new Promise<T>((_, reject) =>
@@ -73,37 +42,19 @@ function getPlc(
     throw new Error("PLC IP와 Port가 필수입니다");
   }
 
-  const key = `${ip}:${port}`;
-  let cached = connections.get(key);
-
-  if (!cached) {
-    let newPlc: PLCConnector;
-
-    // plcType에 따라 적절한 PLC 드라이버 생성
-    if (plcType === "modbus") {
-      // Modbus 주소 매핑 설정 (기본값: 그대로 사용)
-      const mapping = addressMapping || {
-        dAddressBase: 0,
-        modbusOffset: 0,
-      };
-      newPlc = new XgtModbusPLC(ip, parseInt(port), 1, mapping);
-    } else {
-      // 기본값: Mitsubishi MC Protocol
-      newPlc = new McPLC(ip, parseInt(port));
-    }
-
-    cached = {
-      plc: newPlc,
-      lastUsed: Date.now(),
-      isReading: false,
+  // plcType에 따라 적절한 PLC 드라이버 생성
+  if (plcType === "modbus") {
+    // Modbus 주소 매핑 설정 (기본값: 그대로 사용)
+    const mapping = addressMapping || {
+      dAddressBase: 0,
+      modbusOffset: 0,
     };
-    connections.set(key, cached);
+    // 참고: XgtModbusPLC도 장기적으로 싱글톤으로 만드는 것을 고려할 수 있습니다.
+    return new XgtModbusPLC(ip, parseInt(port), 1, mapping);
   } else {
-    // Update last used time
-    cached.lastUsed = Date.now();
+    // 기본값: Mitsubishi MC Protocol 싱글톤 인스턴스 사용
+    return McPLC.getInstance(ip, parseInt(port));
   }
-
-  return cached.plc;
 }
 
 /**
@@ -285,22 +236,8 @@ export async function POST(request: Request) {
 
   try {
     const plc = getPlc(ip, port, plcType, addressMapping);
-    const key = `${ip}:${port}`;
-    const cached = connections.get(key);
-
-    if (cached) {
-      cached.isReading = true;
-    }
-
-    try {
-      await withTimeout(plc.write(address, value), REQUEST_TIMEOUT);
-      return NextResponse.json({ success: true });
-    } finally {
-      if (cached) {
-        cached.isReading = false;
-        cached.lastUsed = Date.now();
-      }
-    }
+    await withTimeout(plc.write(address, value), REQUEST_TIMEOUT);
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("PLC Write Error:", error);
     const message =

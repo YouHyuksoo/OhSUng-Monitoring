@@ -112,7 +112,7 @@ class RealtimeDataService {
       );
     } else {
       // 기본값: Mitsubishi MC Protocol
-      this.connection = new McPLC(ip, port);
+      this.connection = McPLC.getInstance(ip, port);
       console.log(
         `[RealtimeDataService] Connecting to Mitsubishi MC at ${ip}:${port}`
       );

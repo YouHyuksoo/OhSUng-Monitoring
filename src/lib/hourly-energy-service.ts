@@ -149,7 +149,7 @@ class HourlyEnergyService {
         `[HourlyEnergyService] Connecting to LS Modbus TCP at ${ip}:${port}`
       );
     } else {
-      this.connection = new McPLC(ip, port);
+      this.connection = McPLC.getInstance(ip, port);
       console.log(
         `[HourlyEnergyService] Connecting to Mitsubishi MC at ${ip}:${port}`
       );

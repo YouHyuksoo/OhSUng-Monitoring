@@ -3,6 +3,7 @@
  * @description
  * Mitsubishi MC Protocol을 이용한 PLC 통신을 구현합니다.
  * mcprotocol 라이브러리를 사용하여 FX3U/Q-Series 등의 PLC와 TCP 통신합니다.
+ * 이 클래스는 애플리케이션 전체에서 단 하나의 인스턴스만 존재하는 싱글톤으로 구현됩니다.
  *
  * 초보자 가이드:
  * 1. **mcprotocol 라이브러리**: 미쓰비시 PLC와의 MC Protocol 통신을 담당
@@ -15,7 +16,8 @@
  *    - D4000~D4038: 전력 데이터
  *
  * @example
- * const plc = new McPLC('192.168.0.1', 2000);
+ * // new McPLC() 대신 getInstance()를 사용합니다.
+ * const plc = McPLC.getInstance('192.168.0.1', 2000);
  * await plc.connect();
  * const data = await plc.read(['D430,1', 'D4000,1']);
  * await plc.disconnect();
@@ -25,6 +27,9 @@ import { PLCConnector, PLCData } from "./plc-connector";
 import MC from "mcprotocol";
 
 export class McPLC implements PLCConnector {
+  // 싱글톤 인스턴스를 저장하기 위한 정적 변수
+  private static instance: McPLC;
+
   /**
    * mcprotocol 라이브러리 인스턴스
    */
@@ -50,10 +55,29 @@ export class McPLC implements PLCConnector {
    */
   private isReading: boolean = false;
 
-  constructor(ip: string, port: number) {
+  /**
+   * 생성자를 private으로 선언하여 외부에서 직접 인스턴스화를 방지합니다.
+   * @param ip PLC IP 주소
+   * @param port PLC 포트 번호
+   */
+  private constructor(ip: string, port: number) {
     this.ip = ip;
     this.port = port;
     this.conn = new MC();
+  }
+
+  /**
+   * McPLC의 싱글톤 인스턴스를 가져옵니다.
+   * 최초 호출 시에만 인스턴스를 생성하고, 이후에는 생성된 인스턴스를 반환합니다.
+   * @param ip PLC IP 주소 (최초 생성 시에만 사용됨)
+   * @param port PLC 포트 번호 (최초 생성 시에만 사용됨)
+   * @returns McPLC 인스턴스
+   */
+  public static getInstance(ip: string, port: number): McPLC {
+    if (!McPLC.instance) {
+      McPLC.instance = new McPLC(ip, port);
+    }
+    return McPLC.instance;
   }
 
   /**

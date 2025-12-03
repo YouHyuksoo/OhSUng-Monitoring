@@ -35,7 +35,6 @@ class PLCPollingService {
   private pollingConfigs = new Map<string, PollingConfig>();
   private cachedData = new Map<string, CachedData>();
   private pollingIntervals = new Map<string, NodeJS.Timeout>();
-  private connections = new Map<string, PLCConnector>();
 
   /**
    * 폴링 설정 등록 및 시작
@@ -130,19 +129,10 @@ class PLCPollingService {
     port: number,
     isDemoMode?: boolean
   ): PLCConnector {
-    const key = this.getKey(ip, port);
-    let plc = this.connections.get(key);
-
-    if (!plc) {
-      if (isDemoMode) {
-        plc = mockPlc;
-      } else {
-        plc = new McPLC(ip, port);
-      }
-      this.connections.set(key, plc);
+    if (isDemoMode) {
+      return mockPlc;
     }
-
-    return plc;
+    return McPLC.getInstance(ip, port);
   }
 
   private startPolling(key: string) {
