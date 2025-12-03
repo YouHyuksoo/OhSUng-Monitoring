@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useTheme } from "@/components/theme-provider";
 import { useSettings } from "@/lib/useSettings";
 import { useAuth } from "@/lib/auth-context";
-import { Moon, Sun, LogOut, User } from "lucide-react";
+import { Moon, Sun, LogOut, User, Home, BarChart3 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -96,8 +96,17 @@ export function Header() {
   return (
     <header className="border-b bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-900 dark:to-blue-950 shadow-md">
       <div className="flex h-16 items-center justify-between">
-        {/* 좌측: 타이틀만 */}
-        <div className="flex items-center pl-6">
+        {/* 좌측: 로고/아이콘 + 타이틀 */}
+        <div className="flex items-center gap-4 pl-6">
+          {/* 랜딩페이지로 가는 로고/홈 버튼 */}
+          <button
+            onClick={() => router.push("/")}
+            className="inline-flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white p-2 transition-colors"
+            title="홈으로 이동"
+          >
+            <BarChart3 className="h-6 w-6" />
+          </button>
+
           {/* 현재 페이지 타이틀 */}
           {mounted && (
             <h1 className="text-3xl font-bold text-white">{getPageTitle()}</h1>
