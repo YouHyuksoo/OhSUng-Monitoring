@@ -11,138 +11,138 @@ import path from "path";
 import fs from "fs";
 
 export async function GET(request: Request) {
+  const dbPath = path.join(process.cwd(), "data", "energy.db");
+
+  // 1. DB 파일이 없는 경우 (정상적인 초기 상태)
+  if (!fs.existsSync(dbPath)) {
+    return NextResponse.json({
+      database: {
+        filePath: dbPath,
+        fileExists: false,
+        fileSizeBytes: 0,
+        fileSizeMB: "0.00",
+      },
+      tables: {
+        realtime_data: {
+          rowCount: 0,
+          oldestData: null,
+          newestData: null,
+        },
+        hourly_energy: {
+          rowCount: 0,
+          oldestData: null,
+          newestData: null,
+        },
+      },
+      totalRows: 0,
+      timestamp: Date.now(),
+    });
+  }
+
+  // 2. DB 파일이 있는 경우
+  // 여기서 발생하는 에러(권한 문제, 파일 손상 등)는 숨기지 않고 500 에러로 처리됨
+  const fileStats = fs.statSync(dbPath);
+  const db = new Database(dbPath, { readonly: true });
+
   try {
-    const dbPath = path.join(process.cwd(), "data", "energy.db");
+    // 테이블 존재 여부 확인 헬퍼
+    const checkTableExists = (tableName: string) => {
+      const stmt = db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
+      );
+      return !!stmt.get(tableName);
+    };
 
-    // DB 파일 정보
-    let fileSize = 0;
-    let fileExists = false;
+    // realtime_data 통계
+    let realtimeStats = {
+      rowCount: 0,
+      oldestData: null as string | null,
+      newestData: null as string | null,
+    };
 
-    try {
-      const stats = fs.statSync(dbPath);
-      fileSize = stats.size;
-      fileExists = true;
-    } catch (e) {
-      // DB 파일이 없으면 0으로 처리
-      fileSize = 0;
-      fileExists = false;
+    if (checkTableExists("realtime_data")) {
+      const countResult = db
+        .prepare("SELECT COUNT(*) as count FROM realtime_data")
+        .get() as { count: number };
+      realtimeStats.rowCount = countResult.count;
+
+      const timeResult = db
+        .prepare(
+          "SELECT MIN(timestamp) as oldest, MAX(timestamp) as newest FROM realtime_data"
+        )
+        .get() as { oldest: number; newest: number };
+
+      if (timeResult.oldest) {
+        realtimeStats.oldestData = new Date(timeResult.oldest).toISOString();
+      }
+      if (timeResult.newest) {
+        realtimeStats.newestData = new Date(timeResult.newest).toISOString();
+      }
     }
 
-    // DB 접속하여 데이터 행 수 조회
-    let realtimeCount = 0;
-    let hourlyCount = 0;
-    let oldestRealtimeData: string | null = null;
-    let newestRealtimeData: string | null = null;
-    let oldestHourlyData: string | null = null;
-    let newestHourlyData: string | null = null;
+    // hourly_energy (또는 daily_energy) 통계
+    let hourlyStats = {
+      rowCount: 0,
+      oldestData: null as string | null,
+      newestData: null as string | null,
+    };
 
-    if (fileExists) {
-      try {
-        const db = new Database(dbPath, { readonly: true });
+    if (checkTableExists("daily_energy")) {
+      // 신규 테이블 구조
+      const countResult = db
+        .prepare("SELECT COUNT(*) as count FROM daily_energy")
+        .get() as { count: number };
+      hourlyStats.rowCount = countResult.count;
 
-        /**
-         * realtime_data 테이블 통계
-         * 테이블이 없으면 에러를 잡아서 0으로 처리
-         */
-        try {
-          const realtimeStmt = db.prepare(
-            "SELECT COUNT(*) as count FROM realtime_data"
-          );
-          const realtimeResult = realtimeStmt.get() as { count: number };
-          realtimeCount = realtimeResult?.count || 0;
+      const timeResult = db
+        .prepare(
+          "SELECT MIN(last_update) as oldest, MAX(last_update) as newest FROM daily_energy"
+        )
+        .get() as { oldest: number; newest: number };
 
-          // 가장 오래된/최신 데이터 시간
-          const realtimeTimeStmt = db.prepare(
-            `SELECT
-              MIN(timestamp) as oldest,
-              MAX(timestamp) as newest
-             FROM realtime_data`
-          );
-          const realtimeTimeResult = realtimeTimeStmt.get() as {
-            oldest: number | null;
-            newest: number | null;
-          };
+      if (timeResult.oldest) {
+        hourlyStats.oldestData = new Date(timeResult.oldest).toISOString();
+      }
+      if (timeResult.newest) {
+        hourlyStats.newestData = new Date(timeResult.newest).toISOString();
+      }
+    } else if (checkTableExists("hourly_energy")) {
+      // 기존 테이블 구조 (호환성)
+      const countResult = db
+        .prepare("SELECT COUNT(*) as count FROM hourly_energy")
+        .get() as { count: number };
+      hourlyStats.rowCount = countResult.count;
 
-          if (realtimeTimeResult?.oldest && realtimeTimeResult.oldest > 0) {
-            oldestRealtimeData = new Date(realtimeTimeResult.oldest).toISOString();
-          }
-          if (realtimeTimeResult?.newest && realtimeTimeResult.newest > 0) {
-            newestRealtimeData = new Date(realtimeTimeResult.newest).toISOString();
-          }
-        } catch (e) {
-          console.debug("realtime_data table not found or error querying:", e);
-          realtimeCount = 0;
-        }
+      const timeResult = db
+        .prepare(
+          "SELECT MIN(timestamp) as oldest, MAX(timestamp) as newest FROM hourly_energy"
+        )
+        .get() as { oldest: number; newest: number };
 
-        /**
-         * hourly_energy 테이블 통계
-         * 테이블이 없으면 에러를 잡아서 0으로 처리
-         */
-        try {
-          const hourlyStmt = db.prepare(
-            "SELECT COUNT(*) as count FROM hourly_energy"
-          );
-          const hourlyResult = hourlyStmt.get() as { count: number };
-          hourlyCount = hourlyResult?.count || 0;
-
-          // 가장 오래된/최신 데이터 시간
-          const hourlyTimeStmt = db.prepare(
-            `SELECT
-              MIN(timestamp) as oldest,
-              MAX(timestamp) as newest
-             FROM hourly_energy`
-          );
-          const hourlyTimeResult = hourlyTimeStmt.get() as {
-            oldest: number | null;
-            newest: number | null;
-          };
-
-          if (hourlyTimeResult?.oldest && hourlyTimeResult.oldest > 0) {
-            oldestHourlyData = new Date(hourlyTimeResult.oldest).toISOString();
-          }
-          if (hourlyTimeResult?.newest && hourlyTimeResult.newest > 0) {
-            newestHourlyData = new Date(hourlyTimeResult.newest).toISOString();
-          }
-        } catch (e) {
-          console.debug("hourly_energy table not found or error querying:", e);
-          hourlyCount = 0;
-        }
-
-        db.close();
-      } catch (e) {
-        console.error("Failed to open database:", e);
+      if (timeResult.oldest) {
+        hourlyStats.oldestData = new Date(timeResult.oldest).toISOString();
+      }
+      if (timeResult.newest) {
+        hourlyStats.newestData = new Date(timeResult.newest).toISOString();
       }
     }
 
     return NextResponse.json({
       database: {
         filePath: dbPath,
-        fileExists,
-        fileSizeBytes: fileSize,
-        fileSizeMB: (fileSize / 1024 / 1024).toFixed(2),
+        fileExists: true,
+        fileSizeBytes: fileStats.size,
+        fileSizeMB: (fileStats.size / 1024 / 1024).toFixed(2),
       },
       tables: {
-        realtime_data: {
-          rowCount: realtimeCount,
-          oldestData: oldestRealtimeData,
-          newestData: newestRealtimeData,
-        },
-        hourly_energy: {
-          rowCount: hourlyCount,
-          oldestData: oldestHourlyData,
-          newestData: newestHourlyData,
-        },
+        realtime_data: realtimeStats,
+        hourly_energy: hourlyStats,
       },
-      totalRows: realtimeCount + hourlyCount,
+      totalRows: realtimeStats.rowCount + hourlyStats.rowCount,
       timestamp: Date.now(),
     });
-  } catch (error) {
-    console.error("[API] Failed to get DB stats:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Failed to get DB stats",
-      },
-      { status: 500 }
-    );
+  } finally {
+    // DB 연결은 반드시 닫아줌
+    db.close();
   }
 }
