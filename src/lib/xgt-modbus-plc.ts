@@ -182,9 +182,9 @@ export class XgtModbusPLC implements PLCConnector {
         const errorMsg =
           e instanceof Error ? `${e.name}: ${e.message}` : String(e);
         console.error(`[XgtModbusPLC] ❌ Connection failed - ${errorMsg}`);
-        // 연결 실패 시 모든 주소에 0 반환 (크래시 방지)
+        // 연결 실패 시 모든 주소에 null 반환 (읽기 실패 명시)
         const fallback: PLCData = {};
-        addresses.forEach((addr) => (fallback[addr] = 0));
+        addresses.forEach((addr) => (fallback[addr] = null));
         return fallback;
       }
     }
@@ -215,31 +215,33 @@ export class XgtModbusPLC implements PLCConnector {
                 `[XgtModbusPLC] Unexpected response format for ${addr}:`,
                 JSON.stringify(res)
               );
-              result[addr] = 0;
+              result[addr] = null; // 형식 오류 시 null
             }
           } catch (e) {
             // 비동기 메서드가 없으면 콜백 기반으로 시도
-            const values = await new Promise<number[]>((resolve, reject) => {
-              (this.client as any).readHoldingRegisters(
-                regAddr,
-                1,
-                (err: any, data: any) => {
-                  if (err) {
-                    reject(err);
-                  } else {
-                    // 콜백의 data도 동일한 구조일 수 있음
-                    if (data && Array.isArray(data.data)) {
-                      resolve(data.data);
-                    } else if (Array.isArray(data)) {
-                      resolve(data);
+            const values = await new Promise<number[] | null>(
+              (resolve, reject) => {
+                (this.client as any).readHoldingRegisters(
+                  regAddr,
+                  1,
+                  (err: any, data: any) => {
+                    if (err) {
+                      reject(err);
                     } else {
-                      resolve([0]);
+                      // 콜백의 data도 동일한 구조일 수 있음
+                      if (data && Array.isArray(data.data)) {
+                        resolve(data.data);
+                      } else if (Array.isArray(data)) {
+                        resolve(data);
+                      } else {
+                        resolve([0]); // 여기는 데이터가 있는데 형식이 이상한 경우라 0으로 두거나 null로 변경 고려
+                      }
                     }
                   }
-                }
-              );
-            });
-            result[addr] = values[0] || 0;
+                );
+              }
+            );
+            result[addr] = values ? values[0] : null;
           }
         } catch (e) {
           const errorMsg =
@@ -247,7 +249,7 @@ export class XgtModbusPLC implements PLCConnector {
           console.error(
             `[XgtModbusPLC] ❌ Read failed for ${addr} - ${errorMsg}`
           );
-          result[addr] = 0; // Fallback
+          result[addr] = null; // 읽기 실패 시 null (명시적 에러 상태)
         }
       })
     );

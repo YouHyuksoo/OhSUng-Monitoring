@@ -107,6 +107,22 @@ function getPlc(
 }
 
 /**
+ * PLC 주소를 mcprotocol 형식으로 변환합니다.
+ * D430 -> D430,1 형식으로 변환하여 1개 값 읽기를 지정합니다.
+ *
+ * @param address - PLC 주소 (D430, D4000 등)
+ * @returns mcprotocol 형식 주소 (D430,1, D4000,1 등)
+ */
+function normalizeMCAddress(address: string): string {
+  // 이미 ,를 포함하면 그대로 반환
+  if (address.includes(",")) {
+    return address;
+  }
+  // D430 형식 -> D430,1로 변환 (1개 값 읽기)
+  return `${address},1`;
+}
+
+/**
  * 설정값에서 모든 PLC 주소 추출
  * - address: 현재값 또는 측정값 주소
  * - setAddress: 온도 설정값 주소
@@ -190,6 +206,11 @@ export async function GET(request: Request) {
         { error: "No addresses provided" },
         { status: 400 }
       );
+    }
+
+    // MC Protocol의 경우 주소를 mcprotocol 형식으로 정규화 (D430 -> D430,1)
+    if (plcType === "mc" || !plcType) {
+      pollingAddresses = pollingAddresses.map(normalizeMCAddress);
     }
 
     // Demo 모드도 백그라운드 폴링 등록 (DB에 저장)

@@ -200,6 +200,7 @@ export const useSettingsStore = create<SettingsStore>()(
 
         // chartConfigs가 비어있으면 기본값으로 보충
         const loadedSettings: Settings = {
+          ...DEFAULT_SETTINGS,
           ...serverData,
           chartConfigs:
             serverData.chartConfigs && serverData.chartConfigs.length > 0

@@ -14,7 +14,7 @@
 
 import { McPLC } from "./mc-plc";
 import { plc as mockPlc } from "./mock-plc";
-import { PLCConnector } from "./plc-connector";
+import { PLCConnector, PLCData } from "./plc-connector";
 import { realtimeDataService } from "./realtime-data-service";
 
 interface PollingConfig {
@@ -26,7 +26,7 @@ interface PollingConfig {
 }
 
 interface CachedData {
-  data: { [key: string]: number };
+  data: PLCData;
   lastUpdate: number;
   error?: string;
 }
@@ -97,7 +97,7 @@ class PLCPollingService {
     port: number,
     addresses: string[],
     isDemoMode?: boolean
-  ): Promise<{ [key: string]: number }> {
+  ): Promise<PLCData> {
     const key = this.getKey(ip, port);
     const plc = this.getOrCreateConnection(ip, port, isDemoMode);
 

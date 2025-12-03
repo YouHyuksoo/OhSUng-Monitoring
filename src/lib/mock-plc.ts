@@ -51,25 +51,29 @@ export class MockPLC implements PLCConnector {
 
     const result: PLCData = {};
     addresses.forEach((addr) => {
+      // mcprotocol 형식 처리: D430,1 -> D430 추출
+      // addr은 "D430,1" 형식일 수 있으므로 콤마 전까지만 사용
+      const baseAddr = addr.split(",")[0];
+
       // Simulate fluctuation for monitoring
-      if (this.memory.has(addr)) {
-        let val = this.memory.get(addr) || 0;
+      if (this.memory.has(baseAddr)) {
+        let val = this.memory.get(baseAddr) || 0;
         // Add random noise to simulate sensor reading
-        const addrNum = parseInt(addr.substring(1));
+        const addrNum = parseInt(baseAddr.substring(1));
         // Temp current values (D400, D410, ... D470) - Ends with 0
         if (addrNum >= 400 && addrNum <= 470 && addrNum % 10 === 0) {
           val += Math.random() - 0.5;
           val = Math.round(val * 10) / 10;
-        } else if (addr === "D4032") {
+        } else if (baseAddr === "D4032") {
           // Power Energy
           val += (Math.random() - 0.5) * 10;
           val = Math.round(val);
-        } else if (addr === "D6100") {
+        } else if (baseAddr === "D6100") {
           // Hourly Energy Accumulation (Wh) - 계속 증가
           val += Math.round(Math.random() * 50); // 0~50Wh 증가
         }
         result[addr] = val;
-        this.memory.set(addr, val);
+        this.memory.set(baseAddr, val);
       } else {
         result[addr] = 0;
       }

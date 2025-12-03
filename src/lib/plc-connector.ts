@@ -1,5 +1,5 @@
 export interface PLCData {
-  [address: string]: number;
+  [address: string]: number | null;
 }
 
 export interface PLCConnector {
