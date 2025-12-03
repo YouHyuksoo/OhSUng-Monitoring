@@ -137,7 +137,7 @@ export default function AdminPage() {
     setIsStartingPolling(true);
     try {
       // 1. 시간별 에너지 폴링 시작
-      await fetch("/api/energy/hourly", {
+      const hourlyResponse = await fetch("/api/energy/hourly", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -148,8 +148,14 @@ export default function AdminPage() {
         }),
       });
 
+      if (!hourlyResponse.ok) {
+        throw new Error(
+          `시간별 에너지 폴링 시작 실패: ${hourlyResponse.statusText}`
+        );
+      }
+
       // 2. 실시간 데이터 폴링 시작
-      await fetch("/api/realtime/polling", {
+      const realtimeResponse = await fetch("/api/realtime/polling", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -162,7 +168,14 @@ export default function AdminPage() {
         }),
       });
 
-      // 상태 갱신
+      if (!realtimeResponse.ok) {
+        throw new Error(
+          `실시간 데이터 폴링 시작 실패: ${realtimeResponse.statusText}`
+        );
+      }
+
+      // 상태 갱신 (약간의 지연을 줘서 서버가 폴링을 완전히 시작하도록 대기)
+      await new Promise((resolve) => setTimeout(resolve, 500));
       await checkPollingStatus();
       setIsPollingActive(true);
     } catch (error) {
@@ -184,10 +197,16 @@ export default function AdminPage() {
         method: "POST",
       });
 
-      if (response.ok) {
-        await checkPollingStatus();
-        setIsPollingActive(false);
+      if (!response.ok) {
+        throw new Error(
+          `폴링 서비스 중지 실패: ${response.statusText}`
+        );
       }
+
+      // 상태 갱신 (약간의 지연을 줘서 서버가 폴링을 완전히 중지하도록 대기)
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await checkPollingStatus();
+      setIsPollingActive(false);
     } catch (error) {
       console.error("Failed to stop polling:", error);
       alert(
