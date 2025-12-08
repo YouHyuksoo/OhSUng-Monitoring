@@ -592,6 +592,61 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* 온도 차트 Y축 범위 설정 */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold mb-4">온도 차트 Y축 범위</h2>
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="tempChartYMin"
+                className="text-sm font-medium block mb-1.5"
+              >
+                최소값 (°C)
+              </label>
+              <input
+                type="number"
+                id="tempChartYMin"
+                value={localSettings.tempChartYMin}
+                onChange={(e) =>
+                  handleChange("tempChartYMin", parseInt(e.target.value))
+                }
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                온도 차트의 Y축 최소값을 설정합니다.
+              </p>
+            </div>
+            <div>
+              <label
+                htmlFor="tempChartYMax"
+                className="text-sm font-medium block mb-1.5"
+              >
+                최대값 (°C)
+              </label>
+              <input
+                type="number"
+                id="tempChartYMax"
+                value={localSettings.tempChartYMax}
+                onChange={(e) =>
+                  handleChange("tempChartYMax", parseInt(e.target.value))
+                }
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                온도 차트의 Y축 최대값을 설정합니다.
+              </p>
+            </div>
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded text-xs dark:bg-blue-900/20 dark:border-blue-800">
+              <p className="font-medium text-blue-800 dark:text-blue-500 mb-1">
+                📊 현재 범위: {localSettings.tempChartYMin}°C ~ {localSettings.tempChartYMax}°C
+              </p>
+              <p className="text-blue-700 dark:text-blue-400">
+                모니터링 페이지의 온도 차트(수절/열풍)에 적용되는 Y축 범위입니다. 변경 후 모니터링 페이지를 새로고침하면 적용됩니다.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* 데이터 관리 설정 */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 lg:col-span-2">
           <h2 className="text-lg font-semibold mb-4">데이터 관리</h2>

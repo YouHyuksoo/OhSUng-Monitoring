@@ -409,7 +409,6 @@ export function RealtimeChart({
       {/* 측정값/설정값 표시 영역 */}
       <div className="flex gap-2 px-4 py-2 bg-background/20 backdrop-blur-sm flex-none border-b border-border/30">
         <div className="flex-1">
-          <div className="text-xs text-muted-foreground mb-1">측정온도</div>
           <div className="text-lg font-bold text-foreground">
             {currentValue.toFixed(1)}<span className="text-sm ml-0.5">{unit}</span>
           </div>
