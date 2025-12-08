@@ -53,7 +53,9 @@ export default function MonitoringPage() {
   }, []);
 
   /**
-   * 폴링 상태 조회 (페이지 진입 시 한 번만)
+   * 폴링 상태 주기적 조회
+   * - 2초마다 폴링 상태 갱신 (실시간 상태 표시)
+   * - 페이지 언마운트 시 인터벌 정리
    */
   useEffect(() => {
     const checkPollingStatus = async () => {
@@ -70,8 +72,14 @@ export default function MonitoringPage() {
       }
     };
 
-    // 페이지 진입 시 딱 한 번만 폴링 상태 조회
+    // 초기 로드 시 한 번 실행
     checkPollingStatus();
+
+    // 2초마다 폴링 상태 갱신
+    const statusCheckInterval = setInterval(checkPollingStatus, 2000);
+
+    // 정리: 페이지 언마운트 시 인터벌 제거
+    return () => clearInterval(statusCheckInterval);
   }, []);
 
   /**
