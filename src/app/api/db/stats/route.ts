@@ -10,12 +10,39 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const dbPath = path.join(process.cwd(), "data", "energy.db");
 
-    // 1. 파일 정보 조회
-    // 파일이 없으면 여기서 에러가 발생하여 500 응답을 반환함 (사용자 의도: DB 없음 = 오류)
+    // 1. 파일 존재 여부 확인
+    // 파일이 없으면 빈 상태로 응답 (빌드 시간에 호출될 수 있으므로 안전하게 처리)
+    if (!fs.existsSync(dbPath)) {
+      return NextResponse.json({
+        database: {
+          filePath: dbPath,
+          fileExists: false,
+          fileSizeBytes: 0,
+          fileSizeMB: "0.00",
+        },
+        tables: {
+          realtime_data: {
+            rowCount: 0,
+            oldestData: null,
+            newestData: null,
+          },
+          hourly_energy: {
+            rowCount: 0,
+            oldestData: null,
+            newestData: null,
+          },
+        },
+        totalRows: 0,
+        timestamp: Date.now(),
+        message: "Database file not yet created",
+      });
+    }
+
+    // 2. 파일 정보 조회
     const fileStats = fs.statSync(dbPath);
 
     // 2. DB 연결
