@@ -21,6 +21,9 @@
 import { NextResponse } from "next/server";
 import { hourlyEnergyService, DailyEnergyData } from "@/lib/hourly-energy-service";
 
+// 동적 라우트 (빌드 시 프리-렌더링하지 않음)
+export const dynamic = "force-dynamic";
+
 /**
  * GET: 에너지 데이터 조회
  * - 날짜 범위 조회 시 한 번의 API 호출로 모든 데이터 반환

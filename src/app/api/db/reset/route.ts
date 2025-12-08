@@ -16,6 +16,9 @@ import Database from "better-sqlite3";
 import path from "path";
 import { hourlyEnergyService } from "@/lib/hourly-energy-service";
 
+// 동적 라우트 (빌드 시 프리-렌더링하지 않음)
+export const dynamic = "force-dynamic";
+
 /**
  * 데이터베이스 연결 및 초기화
  */

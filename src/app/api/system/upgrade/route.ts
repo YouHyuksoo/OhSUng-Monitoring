@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { exec } from "child_process";
 import util from "util";
 
+// 동적 라우트 (빌드 시 프리-렌더링하지 않음)
+export const dynamic = "force-dynamic";
+
 const execAsync = util.promisify(exec);
 
 export async function POST() {

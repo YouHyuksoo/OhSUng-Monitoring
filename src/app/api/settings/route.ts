@@ -16,6 +16,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 
+// 동적 라우트 (빌드 시 프리-렌더링하지 않음)
+export const dynamic = "force-dynamic";
+
 const DATA_DIR = path.join(process.cwd(), "data");
 const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
 

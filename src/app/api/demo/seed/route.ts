@@ -9,6 +9,9 @@
 import { NextResponse } from "next/server";
 import { realtimeDataService } from "@/lib/realtime-data-service";
 
+// 동적 라우트 (빌드 시 프리-렌더링하지 않음)
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();

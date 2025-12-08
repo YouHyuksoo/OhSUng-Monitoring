@@ -10,6 +10,9 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
+// 동적 라우트 (빌드 시 프리-렌더링하지 않음)
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const dbPath = path.join(process.cwd(), "data", "energy.db");

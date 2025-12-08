@@ -5,6 +5,9 @@ import { XgtModbusPLC } from "@/lib/xgt-modbus-plc";
 import { PLCConnector } from "@/lib/plc-connector";
 import { pollingService } from "@/lib/plc-polling-service";
 
+// 동적 라우트 (빌드 시 프리-렌더링하지 않음)
+export const dynamic = "force-dynamic";
+
 const REQUEST_TIMEOUT = 10 * 1000; // 10초
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
