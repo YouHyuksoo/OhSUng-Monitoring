@@ -80,6 +80,7 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
     weekly: 0,
     monthly: 0,
   });
+  const [mounted, setMounted] = useState(false);
 
   /**
    * 에너지 데이터 조회 함수
@@ -152,6 +153,13 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
   };
 
   /**
+   * 클라이언트 마운트 확인
+   */
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  /**
    * 초기 데이터 로드 (페이지 진입 시 1회)
    */
   useEffect(() => {
@@ -160,24 +168,41 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
   }, []);
 
   /**
-   * 주기적인 데이터 갱신 (폴링 활성화 시에만)
-   * - isPollingActive가 true일 때만 주기적으로 에너지 데이터 조회
+   * 주기적인 데이터 갱신 (10초마다)
+   * - mounted 상태 확인 후 주기적으로 에너지 데이터 조회
    * - monitoringRefreshInterval: 모니터링 화면에서 DB 데이터를 조회하는 주기 (기본값: 10초)
+   * - 프로덕션 빌드에서도 안정적으로 작동하도록 개선
    */
   useEffect(() => {
-    // 폴링이 활성화되지 않았으면 주기적 갱신 없음
-    if (!isPollingActive) {
+    // 클라이언트 마운트 확인 (SSR 방지)
+    if (!mounted) {
       return;
     }
 
     const refreshInterval = settings?.monitoringRefreshInterval || 10000;
 
-    const interval = setInterval(() => {
-      fetchData();
-    }, refreshInterval);
+    let isActive = true;
+    let refreshIntervalId: NodeJS.Timeout | null = null;
 
-    return () => clearInterval(interval);
-  }, [isPollingActive, settings?.monitoringRefreshInterval]);
+    const startRefreshing = () => {
+      refreshIntervalId = setInterval(() => {
+        if (isActive) {
+          fetchData();
+        }
+      }, refreshInterval);
+    };
+
+    // 정기적 갱신 시작
+    startRefreshing();
+
+    // 정리: 컴포넌트 언마운트 시
+    return () => {
+      isActive = false;
+      if (refreshIntervalId) {
+        clearInterval(refreshIntervalId);
+      }
+    };
+  }, [mounted, settings?.monitoringRefreshInterval]);
 
   const isDark = theme === "dark";
   const gridColor = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";

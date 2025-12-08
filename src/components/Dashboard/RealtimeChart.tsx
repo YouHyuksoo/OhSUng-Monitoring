@@ -202,25 +202,45 @@ export function RealtimeChart({
   }, [address, setAddress]);
 
   /**
-   * 주기적인 데이터 갱신 (폴링 활성화 시에만)
-   * - isPollingActive가 true일 때만 주기적으로 DB 데이터 조회
+   * 주기적인 데이터 갱신 (10초마다)
+   * - mounted 상태 확인 후 주기적으로 DB 데이터 조회
    * - monitoringRefreshInterval: 모니터링 화면에서 DB 데이터를 조회하는 주기 (기본값: 10초)
+   * - 프로덕션 빌드에서도 안정적으로 작동하도록 개선
    */
   useEffect(() => {
-    // 폴링이 활성화되지 않았으면 주기적 갱신 없음
-    if (!isPollingActive) {
+    // 클라이언트 마운트 확인 (SSR 방지)
+    if (!mounted) {
       return;
     }
 
     // 모니터링 갱신 주기 (settings에서 관리, 기본값 10000ms)
     const refreshInterval = settings?.monitoringRefreshInterval || 10000;
 
-    const interval = setInterval(() => {
-      fetchDataFromDB();
-    }, refreshInterval);
+    let isActive = true;
+    let refreshIntervalId: NodeJS.Timeout | null = null;
 
-    return () => clearInterval(interval);
-  }, [address, setAddress, isPollingActive, settings?.monitoringRefreshInterval]);
+    const startRefreshing = () => {
+      refreshIntervalId = setInterval(() => {
+        if (isActive) {
+          fetchDataFromDB();
+        }
+      }, refreshInterval);
+    };
+
+    // 초기 로드
+    fetchDataFromDB();
+
+    // 정기적 갱신 시작
+    startRefreshing();
+
+    // 정리: 컴포넌트 언마운트 시
+    return () => {
+      isActive = false;
+      if (refreshIntervalId) {
+        clearInterval(refreshIntervalId);
+      }
+    };
+  }, [address, setAddress, mounted, settings?.monitoringRefreshInterval]);
 
   const currentValue = data.length > 0 ? data[data.length - 1].current : 0;
   const setValue = data.length > 0 ? data[data.length - 1].set : 0;
