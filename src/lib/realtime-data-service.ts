@@ -21,11 +21,13 @@ import { PLCConnector } from "./plc-connector";
 
 /**
  * 실시간 데이터 포인트
+ * - 주소의 의미(name)도 함께 저장
  */
 export interface RealtimeDataPoint {
   timestamp: number;
   address: string;
   value: number;
+  name?: string; // 주소의 의미 (예: "수절온도1", "순방향 유효전력량")
 }
 
 /**
@@ -45,22 +47,40 @@ class RealtimeDataService {
   private connection: PLCConnector | null = null;
   private currentAddresses: string[] = []; // 현재 폴링 중인 주소들
   private maxDataPoints = 20; // 메모리 캐시 최대 포인트
+  private addressNameMap = new Map<string, string>(); // 주소별 이름 매핑
 
   /**
    * 데이터베이스 초기화
+   * - realtime_data 테이블 생성 또는 업그레이드
+   * - name 컬럼이 없으면 추가 (마이그레이션)
    */
   private initializeDatabase(): void {
     try {
       const dbPath = path.join(process.cwd(), "data", "energy.db");
       this.db = new Database(dbPath);
 
-      // 테이블 생성
+      // 🔄 마이그레이션: name 컬럼이 없으면 추가
+      try {
+        this.db.prepare("SELECT name FROM realtime_data LIMIT 0").all();
+      } catch {
+        // name 컬럼이 없으면 추가
+        console.log("[RealtimeDataService] Adding 'name' column to realtime_data table...");
+        try {
+          this.db.exec(`ALTER TABLE realtime_data ADD COLUMN name TEXT DEFAULT NULL;`);
+          console.log("[RealtimeDataService] 'name' column added successfully");
+        } catch (altError) {
+          console.log("[RealtimeDataService] 'name' column might already exist or table doesn't exist yet");
+        }
+      }
+
+      // 테이블 생성 (기존 테이블이 있으면 무시)
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS realtime_data (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           timestamp INTEGER NOT NULL,
           address TEXT NOT NULL,
-          value INTEGER NOT NULL
+          value INTEGER NOT NULL,
+          name TEXT DEFAULT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_address ON realtime_data(address);
         CREATE INDEX IF NOT EXISTS idx_timestamp ON realtime_data(timestamp);
@@ -80,6 +100,7 @@ class RealtimeDataService {
    * 실시간 폴링 시작
    * - 한 번만 PLC 연결 체크 후 성공하면 폴링 루프 시작
    * - 연결 실패하면 에러 던짐 (폴링 루프 시작 안 함)
+   * - addressNameMap: 주소별 이름 매핑 (예: { "D400": "수절온도1", "D4032": "순방향 유효전력량" })
    */
   async startPolling(
     addresses: string[],
@@ -87,7 +108,8 @@ class RealtimeDataService {
     port: number,
     interval: number = 2000,
     plcType: string = "mc",
-    addressMapping?: any
+    addressMapping?: any,
+    addressNameMap?: Record<string, string>
   ): Promise<void> {
     // DB 초기화
     if (!this.db) {
@@ -100,6 +122,15 @@ class RealtimeDataService {
     }
 
     this.currentAddresses = addresses;
+
+    // 🔤 주소 이름 매핑 저장
+    if (addressNameMap) {
+      this.addressNameMap.clear();
+      Object.entries(addressNameMap).forEach(([address, name]) => {
+        this.addressNameMap.set(address, name);
+      });
+      console.log("[RealtimeDataService] Address name map loaded:", this.addressNameMap);
+    }
 
     // 연결 설정
     if (plcType === "demo") {
@@ -195,7 +226,9 @@ class RealtimeDataService {
       // 각 주소별로 데이터 저장
       Object.entries(data).forEach(([address, value]) => {
         if (typeof value === "number") {
-          console.log(`   ${address}: ${value}`);
+          const name = this.addressNameMap.get(address);
+          const displayName = name ? `${address} (${name})` : address;
+          console.log(`   ${displayName}: ${value}`);
           this.saveToDatabase(address, value, timestamp);
           this.updateMemoryCache(address, value, timestamp);
         } else {
@@ -210,6 +243,7 @@ class RealtimeDataService {
 
   /**
    * DB에 데이터 저장
+   * - 주소의 이름(name)도 함께 저장
    */
   private saveToDatabase(
     address: string,
@@ -219,12 +253,15 @@ class RealtimeDataService {
     if (!this.db) return;
 
     try {
+      // 🔤 주소의 이름 조회
+      const name = this.addressNameMap.get(address) || null;
+
       const stmt = this.db.prepare(`
-        INSERT INTO realtime_data (timestamp, address, value)
-        VALUES (?, ?, ?)
+        INSERT INTO realtime_data (timestamp, address, value, name)
+        VALUES (?, ?, ?, ?)
       `);
 
-      stmt.run(timestamp, address, value);
+      stmt.run(timestamp, address, value, name);
     } catch (error) {
       console.error(
         "[RealtimeDataService] Failed to save data:",
@@ -257,6 +294,7 @@ class RealtimeDataService {
 
   /**
    * 특정 주소의 최근 데이터 조회 (DB에서) - 개수 기준
+   * - name 컬럼도 함께 조회
    * @deprecated getRecentDataByTime 사용 권장
    */
   getRecentData(address: string, limit: number = 20): RealtimeDataPoint[] {
@@ -266,7 +304,7 @@ class RealtimeDataService {
 
     try {
       const stmt = this.db.prepare(`
-        SELECT timestamp, address, value FROM realtime_data
+        SELECT timestamp, address, value, name FROM realtime_data
         WHERE address = ?
         ORDER BY timestamp DESC
         LIMIT ?
@@ -283,6 +321,7 @@ class RealtimeDataService {
 
   /**
    * 특정 주소의 최근 N시간 데이터 조회 (시간 범위 기준)
+   * - name 컬럼도 함께 조회
    * @param address PLC 주소
    * @param hours 조회할 시간 (기본값: 6시간)
    * @returns 해당 시간 범위의 모든 데이터 포인트 (시간순 정렬)
@@ -298,7 +337,7 @@ class RealtimeDataService {
       const cutoffTime = now - hours * 60 * 60 * 1000;
 
       const stmt = this.db.prepare(`
-        SELECT timestamp, address, value FROM realtime_data
+        SELECT timestamp, address, value, name FROM realtime_data
         WHERE address = ? AND timestamp >= ?
         ORDER BY timestamp ASC
       `);
@@ -355,6 +394,7 @@ class RealtimeDataService {
 
   /**
    * 특정 시간 범위 데이터 조회 (DB에서)
+   * - name 컬럼도 함께 조회
    */
   getDataRange(
     address: string,
@@ -365,7 +405,7 @@ class RealtimeDataService {
 
     try {
       const stmt = this.db.prepare(`
-        SELECT timestamp, address, value FROM realtime_data
+        SELECT timestamp, address, value, name FROM realtime_data
         WHERE address = ? AND timestamp >= ? AND timestamp <= ?
         ORDER BY timestamp ASC
       `);
@@ -446,6 +486,7 @@ class RealtimeDataService {
 
   /**
    * 날짜 범위로 데이터 조회 (모든 주소 또는 특정 주소)
+   * - name 컬럼도 함께 조회
    * @param from YYYY-MM-DD 형식의 시작 날짜
    * @param to YYYY-MM-DD 형식의 종료 날짜
    * @param address 특정 주소 (선택 사항)
@@ -466,7 +507,7 @@ class RealtimeDataService {
       const toTime = toDate.getTime();
 
       let query = `
-        SELECT timestamp, address, value FROM realtime_data
+        SELECT timestamp, address, value, name FROM realtime_data
         WHERE timestamp >= ? AND timestamp <= ?
       `;
       const params: any[] = [fromTime, toTime];

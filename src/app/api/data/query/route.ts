@@ -6,17 +6,93 @@
  * - ?from=YYYY-MM-DD : 시작 날짜
  * - ?to=YYYY-MM-DD : 종료 날짜
  * - ?address=주소 : 특정 주소 필터 (선택 사항)
+ * - ?type=realtime|hourly : 데이터 타입 선택 (기본값: realtime)
+ *   - realtime: 실시간 센서 데이터 (차트용)
+ *   - hourly: 시간별 누적 에너지 데이터 (리포트용)
  *
  * 초보자 가이드:
  * 1. **필수 파라미터**: from, to (YYYY-MM-DD 형식)
- * 2. **선택 파라미터**: address (특정 주소만 조회)
+ * 2. **선택 파라미터**: address (특정 주소만 조회), type (기본값: realtime)
  * 3. **응답**: { data: DataPoint[], count: number }
  */
 
 import { NextResponse } from "next/server";
 import { realtimeDataService } from "@/lib/realtime-data-service";
+import Database from "better-sqlite3";
+import path from "path";
+import fs from "fs";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * 🔤 hourly_energy 테이블에서 데이터 조회
+ * - 날짜 범위 기반 조회
+ * - address 필터 지원
+ */
+function getHourlyEnergyData(
+  from: string,
+  to: string,
+  address?: string | null
+): any[] {
+  try {
+    const dbPath = path.join(process.cwd(), "data", "energy.db");
+
+    // DB 파일이 없으면 빈 배열 반환
+    if (!fs.existsSync(dbPath)) {
+      return [];
+    }
+
+    const db = new Database(dbPath, { readonly: true });
+
+    try {
+      // 테이블 존재 여부 확인
+      const tableExists = db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='hourly_energy'"
+      ).get();
+
+      if (!tableExists) {
+        return [];
+      }
+
+      // 날짜를 타임스탐프로 변환
+      const fromDate = new Date(from);
+      fromDate.setHours(0, 0, 0, 0);
+      const fromTime = fromDate.getTime();
+
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      const toTime = toDate.getTime();
+
+      let query = `
+        SELECT
+          timestamp,
+          address,
+          value,
+          NULL as name
+        FROM hourly_energy
+        WHERE timestamp >= ? AND timestamp <= ?
+      `;
+      const params: any[] = [fromTime, toTime];
+
+      if (address) {
+        query += ` AND address = ?`;
+        params.push(address);
+      }
+
+      query += ` ORDER BY timestamp ASC`;
+
+      const stmt = db.prepare(query);
+      const results = stmt.all(...params) as any[];
+
+      return results;
+    } finally {
+      db.close();
+    }
+  } catch (error) {
+    console.error("[API] Failed to get hourly energy data:", error);
+    return [];
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -24,6 +100,7 @@ export async function GET(request: Request) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     const address = searchParams.get("address");
+    const type = searchParams.get("type") || "realtime"; // 기본값: realtime
 
     // 필수 파라미터 검증
     if (!from || !to) {
@@ -33,7 +110,17 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log(`[API] Data query - from: ${from}, to: ${to}, address: ${address}`);
+    // type 파라미터 검증
+    if (!["realtime", "hourly"].includes(type)) {
+      return NextResponse.json(
+        { error: "type은 'realtime' 또는 'hourly'여야 합니다" },
+        { status: 400 }
+      );
+    }
+
+    console.log(
+      `[API] Data query - from: ${from}, to: ${to}, address: ${address}, type: ${type}`
+    );
 
     // 날짜 유효성 검증
     const fromDate = new Date(from);
@@ -46,25 +133,28 @@ export async function GET(request: Request) {
       );
     }
 
-    // 주소가 지정된 경우와 미지정의 경우를 처리
+    // 📊 요청한 테이블에서만 데이터 조회
     let data: any[] = [];
 
-    if (address) {
-      // 특정 주소의 데이터만 조회
-      data = realtimeDataService.getDateRangeData(from, to, address);
-      console.log(
-        `[API] Queried ${data.length} data points for address ${address}`
-      );
-    } else {
-      // 모든 주소의 데이터 조회
-      data = realtimeDataService.getDateRangeData(from, to);
-      console.log(`[API] Queried ${data.length} data points for all addresses`);
+    if (type === "realtime") {
+      // realtime_data 테이블 조회 (실시간 센서 데이터)
+      if (address) {
+        data = realtimeDataService.getDateRangeData(from, to, address);
+      } else {
+        data = realtimeDataService.getDateRangeData(from, to);
+      }
+      console.log(`[API] Queried ${data.length} realtime data points`);
+    } else if (type === "hourly") {
+      // hourly_energy 테이블 조회 (시간별 에너지 데이터)
+      data = getHourlyEnergyData(from, to, address);
+      console.log(`[API] Queried ${data.length} hourly energy data points`);
     }
 
     return NextResponse.json({
       address: address || null,
       from,
       to,
+      type,
       data,
       count: data.length,
     });

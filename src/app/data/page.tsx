@@ -20,10 +20,15 @@ import { Download, RotateCcw, Search, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 
+/**
+ * 데이터 포인트 인터페이스
+ * - name: 주소의 의미 (예: "수절온도1", "순방향 유효전력량")
+ */
 interface DataPoint {
   timestamp: number;
   address: string;
   value: number;
+  name?: string; // 주소의 이름/설명
 }
 
 interface QueryResult {
@@ -37,6 +42,7 @@ export default function DataPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [address, setAddress] = useState("");
+  const [dataType, setDataType] = useState<"realtime" | "hourly">("realtime"); // 🔤 데이터 타입 선택
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -86,6 +92,7 @@ export default function DataPage() {
 
   /**
    * 데이터 조회
+   * - dataType 파라미터로 realtime 또는 hourly 데이터 선택
    */
   const handleQuery = async () => {
     if (!startDate || !endDate) {
@@ -98,7 +105,8 @@ export default function DataPage() {
     setData([]);
 
     try {
-      let url = `/api/data/query?from=${startDate}&to=${endDate}`;
+      // 🔤 데이터 타입 파라미터 추가
+      let url = `/api/data/query?from=${startDate}&to=${endDate}&type=${dataType}`;
       if (address) {
         url += `&address=${address}`;
       }
@@ -133,10 +141,11 @@ export default function DataPage() {
     }
 
     try {
-      // 데이터 변환
+      // 📊 데이터 변환 (name 컬럼 포함)
       const excelData = data.map((point) => ({
-        "타임스탬프": new Date(point.timestamp).toLocaleString("ko-KR"),
+        "타임스탐프": new Date(point.timestamp).toLocaleString("ko-KR"),
         "주소": point.address,
+        "주소명": point.name || "-", // 🔤 주소의 의미/이름
         "값": point.value,
       }));
 
@@ -149,6 +158,7 @@ export default function DataPage() {
       const colWidths = [
         { wch: 20 }, // 타임스탬프
         { wch: 15 }, // 주소
+        { wch: 25 }, // 주소명 (너비 확대)
         { wch: 15 }, // 값
       ];
       ws["!cols"] = colWidths;
@@ -282,6 +292,21 @@ export default function DataPage() {
               />
             </div>
 
+            {/* 데이터 타입 선택 */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                데이터 타입
+              </label>
+              <select
+                value={dataType}
+                onChange={(e) => setDataType(e.target.value as "realtime" | "hourly")}
+                className="w-full px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="realtime">실시간 센서 데이터</option>
+                <option value="hourly">시간별 에너지 데이터</option>
+              </select>
+            </div>
+
             {/* 주소 선택 */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
@@ -382,6 +407,9 @@ export default function DataPage() {
                     <th className="px-6 py-3 text-left font-semibold text-foreground">
                       주소
                     </th>
+                    <th className="px-6 py-3 text-left font-semibold text-foreground">
+                      주소명 (설명)
+                    </th>
                     <th className="px-6 py-3 text-right font-semibold text-foreground">
                       값
                     </th>
@@ -398,6 +426,11 @@ export default function DataPage() {
                       </td>
                       <td className="px-6 py-3 font-medium text-foreground">
                         {point.address}
+                      </td>
+                      <td className="px-6 py-3 text-foreground">
+                        <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs font-medium">
+                          {point.name || "미정의"}
+                        </span>
                       </td>
                       <td className="px-6 py-3 text-right text-foreground font-semibold">
                         {point.value.toFixed(2)}

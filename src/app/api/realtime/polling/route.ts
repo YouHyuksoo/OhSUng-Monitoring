@@ -30,6 +30,30 @@ function extractAllAddresses(chartConfigs: any[]): string[] {
   return Array.from(addresses);
 }
 
+/**
+ * 🔤 주소별 이름 매핑 생성
+ * - chartConfigs에서 각 주소의 이름을 추출
+ * - 예: { "D400": "수절 1", "D401": "수절 1 (설정값)" }
+ */
+function createAddressNameMap(chartConfigs: any[]): Record<string, string> {
+  const nameMap: Record<string, string> = {};
+
+  if (Array.isArray(chartConfigs)) {
+    chartConfigs.forEach((config) => {
+      // address의 이름 추가
+      if (config.address && config.name) {
+        nameMap[config.address] = config.name;
+      }
+      // setAddress의 이름 추가 (설정값 표시)
+      if (config.setAddress && config.name) {
+        nameMap[config.setAddress] = `${config.name} (설정값)`;
+      }
+    });
+  }
+
+  return nameMap;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -74,6 +98,9 @@ export async function POST(request: Request) {
       );
     }
 
+    // 🔤 주소별 이름 매핑 생성
+    const addressNameMap = createAddressNameMap(chartConfigs || []);
+
     console.log(`[API/realtime/polling] 폴링 시작:`, {
       ip,
       port,
@@ -81,6 +108,7 @@ export async function POST(request: Request) {
       interval: `${pollingInterval}ms`,
       addresses: addresses.length,
       addressList: addresses,
+      addressNameMap,
     });
 
     // 실시간 데이터 폴링 시작 (연결 테스트 후 시작)
@@ -90,7 +118,8 @@ export async function POST(request: Request) {
       parseInt(port),
       pollingInterval, // 검증된 폴링 주기 사용
       plcType, // plcType 전달
-      modbusAddressMapping // 매핑 정보 전달
+      modbusAddressMapping, // 매핑 정보 전달
+      addressNameMap // 🔤 주소 이름 매핑 전달
     );
 
     return NextResponse.json({
