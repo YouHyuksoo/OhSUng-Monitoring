@@ -20,7 +20,9 @@
       "Bash(grep:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\n모든 API 엔드포인트에 dynamic=''force-dynamic'' 추가 (빌드 안정성 개선)\n\n- 모든 API 라우트에 ''export const dynamic = \"force-dynamic\"'' 추가\n- 빌드 시 Next.js가 API 엔드포인트를 프리-렌더링하려고 시도하지 않음\n- DB 파일이 없어도 빌드 성공\n- 프로덕션 빌드 시 안정적으로 모든 API 호출 가능\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(npm install:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(lsof:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

@@ -42,7 +42,7 @@ export default function DataPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [address, setAddress] = useState("");
-  const [dataType, setDataType] = useState<"realtime" | "hourly">("realtime"); // 🔤 데이터 타입 선택
+  const [dataType, setDataType] = useState<"realtime" | "hourly" | "daily">("realtime"); // 🔤 데이터 타입 선택
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -299,11 +299,12 @@ export default function DataPage() {
               </label>
               <select
                 value={dataType}
-                onChange={(e) => setDataType(e.target.value as "realtime" | "hourly")}
+                onChange={(e) => setDataType(e.target.value as "realtime" | "hourly" | "daily")}
                 className="w-full px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="realtime">실시간 센서 데이터</option>
-                <option value="hourly">시간별 에너지 데이터</option>
+                <option value="realtime">실시간 센서 데이터 (realtime_data)</option>
+                <option value="hourly">시간별 에너지 (hourly_energy)</option>
+                <option value="daily">일일 누적 에너지 (daily_energy)</option>
               </select>
             </div>
 

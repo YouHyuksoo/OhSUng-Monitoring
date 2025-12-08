@@ -25,13 +25,14 @@ import fs from "fs";
 export const dynamic = "force-dynamic";
 
 /**
- * 🔤 hourly_energy 테이블에서 데이터 조회
+ * 🔤 hourly_energy 또는 daily_energy 테이블에서 데이터 조회
  * - 날짜 범위 기반 조회
  * - address 필터 지원
  */
-function getHourlyEnergyData(
+function getEnergyData(
   from: string,
   to: string,
+  tableType: "hourly" | "daily",
   address?: string | null
 ): any[] {
   try {
@@ -45,10 +46,14 @@ function getHourlyEnergyData(
     const db = new Database(dbPath, { readonly: true });
 
     try {
+      // 테이블명 결정
+      const tableName = tableType === "daily" ? "daily_energy" : "hourly_energy";
+      const timeColumn = tableType === "daily" ? "last_update" : "timestamp";
+
       // 테이블 존재 여부 확인
       const tableExists = db.prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='hourly_energy'"
-      ).get();
+        `SELECT name FROM sqlite_master WHERE type='table' AND name=?`
+      ).get(tableName);
 
       if (!tableExists) {
         return [];
@@ -65,12 +70,12 @@ function getHourlyEnergyData(
 
       let query = `
         SELECT
-          timestamp,
+          ${timeColumn} as timestamp,
           address,
           value,
           NULL as name
-        FROM hourly_energy
-        WHERE timestamp >= ? AND timestamp <= ?
+        FROM ${tableName}
+        WHERE ${timeColumn} >= ? AND ${timeColumn} <= ?
       `;
       const params: any[] = [fromTime, toTime];
 
@@ -79,7 +84,7 @@ function getHourlyEnergyData(
         params.push(address);
       }
 
-      query += ` ORDER BY timestamp ASC`;
+      query += ` ORDER BY ${timeColumn} ASC`;
 
       const stmt = db.prepare(query);
       const results = stmt.all(...params) as any[];
@@ -89,7 +94,7 @@ function getHourlyEnergyData(
       db.close();
     }
   } catch (error) {
-    console.error("[API] Failed to get hourly energy data:", error);
+    console.error("[API] Failed to get energy data:", error);
     return [];
   }
 }
@@ -111,9 +116,9 @@ export async function GET(request: Request) {
     }
 
     // type 파라미터 검증
-    if (!["realtime", "hourly"].includes(type)) {
+    if (!["realtime", "hourly", "daily"].includes(type)) {
       return NextResponse.json(
-        { error: "type은 'realtime' 또는 'hourly'여야 합니다" },
+        { error: "type은 'realtime', 'hourly' 또는 'daily'여야 합니다" },
         { status: 400 }
       );
     }
@@ -146,8 +151,12 @@ export async function GET(request: Request) {
       console.log(`[API] Queried ${data.length} realtime data points`);
     } else if (type === "hourly") {
       // hourly_energy 테이블 조회 (시간별 에너지 데이터)
-      data = getHourlyEnergyData(from, to, address);
+      data = getEnergyData(from, to, "hourly", address);
       console.log(`[API] Queried ${data.length} hourly energy data points`);
+    } else if (type === "daily") {
+      // daily_energy 테이블 조회 (일일 누적 에너지 데이터)
+      data = getEnergyData(from, to, "daily", address);
+      console.log(`[API] Queried ${data.length} daily energy data points`);
     }
 
     return NextResponse.json({
