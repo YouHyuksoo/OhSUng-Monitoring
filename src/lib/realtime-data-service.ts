@@ -418,6 +418,125 @@ class RealtimeDataService {
       console.error("[RealtimeDataService] Failed to cleanup old data:", error);
     }
   }
+
+  /**
+   * DB에 저장된 모든 주소 목록 조회
+   */
+  getAvailableAddresses(): string[] {
+    if (!this.db) {
+      this.initializeDatabase();
+    }
+
+    try {
+      const stmt = this.db!.prepare(`
+        SELECT DISTINCT address FROM realtime_data
+        ORDER BY address ASC
+      `);
+
+      const rows = stmt.all() as Array<{ address: string }>;
+      return rows.map((row) => row.address);
+    } catch (error) {
+      console.error(
+        "[RealtimeDataService] Failed to get available addresses:",
+        error
+      );
+      return [];
+    }
+  }
+
+  /**
+   * 날짜 범위로 데이터 조회 (모든 주소 또는 특정 주소)
+   * @param from YYYY-MM-DD 형식의 시작 날짜
+   * @param to YYYY-MM-DD 형식의 종료 날짜
+   * @param address 특정 주소 (선택 사항)
+   */
+  getDateRangeData(from: string, to: string, address?: string): RealtimeDataPoint[] {
+    if (!this.db) {
+      this.initializeDatabase();
+    }
+
+    try {
+      // 날짜를 타임스탬프로 변환
+      const fromDate = new Date(from);
+      fromDate.setHours(0, 0, 0, 0);
+      const fromTime = fromDate.getTime();
+
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      const toTime = toDate.getTime();
+
+      let query = `
+        SELECT timestamp, address, value FROM realtime_data
+        WHERE timestamp >= ? AND timestamp <= ?
+      `;
+      const params: any[] = [fromTime, toTime];
+
+      if (address) {
+        query += ` AND address = ?`;
+        params.push(address);
+      }
+
+      query += ` ORDER BY timestamp ASC`;
+
+      const stmt = this.db!.prepare(query);
+      return stmt.all(...params) as RealtimeDataPoint[];
+    } catch (error) {
+      console.error("[RealtimeDataService] Failed to get date range data:", error);
+      return [];
+    }
+  }
+
+  /**
+   * 날짜 범위로 데이터 삭제 (모든 주소 또는 특정 주소)
+   * @param from YYYY-MM-DD 형식의 시작 날짜
+   * @param to YYYY-MM-DD 형식의 종료 날짜
+   * @param address 특정 주소 (선택 사항)
+   * @returns 삭제된 데이터 개수
+   */
+  deleteDataByDateRange(from: string, to: string, address: string | null | undefined = undefined): number {
+    if (!this.db) {
+      this.initializeDatabase();
+    }
+
+    try {
+      // 날짜를 타임스탬프로 변환
+      const fromDate = new Date(from);
+      fromDate.setHours(0, 0, 0, 0);
+      const fromTime = fromDate.getTime();
+
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      const toTime = toDate.getTime();
+
+      let query = `
+        DELETE FROM realtime_data
+        WHERE timestamp >= ? AND timestamp <= ?
+      `;
+      const params: any[] = [fromTime, toTime];
+
+      if (address) {
+        query += ` AND address = ?`;
+        params.push(address);
+      }
+
+      const stmt = this.db!.prepare(query);
+      const result = stmt.run(...params);
+
+      console.log(
+        `[RealtimeDataService] Deleted ${result.changes} data points from ${from} to ${to}${
+          address ? ` for address ${address}` : ""
+        }`
+      );
+
+      return result.changes;
+    } catch (error) {
+      console.error(
+        "[RealtimeDataService] Failed to delete date range data:",
+        error
+      );
+      return 0;
+    }
+  }
 }
 
 /**

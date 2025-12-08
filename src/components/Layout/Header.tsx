@@ -37,6 +37,7 @@ export function Header() {
     if (pathname === "/help") return `${appTitle} - 도움말`;
     if (pathname === "/admin") return `${appTitle} - 관리자`;
     if (pathname === "/logs") return `${appTitle} - 로그`;
+    if (pathname === "/data") return `${appTitle} - 데이터 관리`;
     return appTitle;
   };
 
@@ -103,6 +104,16 @@ export function Header() {
               }`}
             >
               설정
+            </Link>
+            <Link
+              href="/data"
+              className={`transition-all font-medium pb-2 border-b-2 ${
+                pathname === "/data"
+                  ? "text-white border-white"
+                  : "text-blue-100 border-transparent hover:text-white hover:border-blue-200"
+              }`}
+            >
+              데이터
             </Link>
             <Link
               href="/logs"

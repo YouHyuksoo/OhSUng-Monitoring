@@ -8,7 +8,19 @@
       "Bash(cat:*)",
       "Bash(curl:*)",
       "Bash(python -m json.tool:*)",
-      "Bash(timeout 120 npm run build:*)"
+      "Bash(timeout 120 npm run build:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\n모니터링 페이지 주기적 갱신 로직 개선 (프로덕션 빌드 대응)\n\n- RealtimeChart, PowerUsageChart 모두 mounted 상태 확인 후 갱신 시작\n- isPollingActive 의존성 제거 (항상 주기적 갱신 수행)\n- isActive 플래그로 언마운트 후 상태 업데이트 방지\n- 10초마다 안정적으로 차트 데이터 갱신 (프로덕션에서도 작동)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(for file in src/app/api/energy/hourly/route.ts src/app/api/energy/hourly/seed/route.ts src/app/api/settings/route.ts src/app/api/demo/seed/route.ts src/app/api/logs/route.ts src/app/api/polling/stop/route.ts src/app/api/realtime/polling/route.ts src/app/api/plc/route.ts src/app/api/system/upgrade/route.ts)",
+      "Bash(do if [ -f \"$file\" ])",
+      "Bash(then head -20 \"$file\")",
+      "Bash(echo:*)",
+      "Bash(echo \"$file: needs dynamic\" fi done)",
+      "Bash(grep:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\n모든 API 엔드포인트에 dynamic=''force-dynamic'' 추가 (빌드 안정성 개선)\n\n- 모든 API 라우트에 ''export const dynamic = \"force-dynamic\"'' 추가\n- 빌드 시 Next.js가 API 엔드포인트를 프리-렌더링하려고 시도하지 않음\n- DB 파일이 없어도 빌드 성공\n- 프로덕션 빌드 시 안정적으로 모든 API 호출 가능\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(npm install:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

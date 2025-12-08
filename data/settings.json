@@ -11,6 +11,7 @@
   "plcPollingInterval": 10000,
   "monitoringRefreshInterval": 10000,
   "dataRetention": 20,
+  "useMemoryPolling": true,
   "sujulTempMin": 100,
   "sujulTempMax": 300,
   "yeolpungTempMin": 100,
@@ -28,7 +29,7 @@
       "name": "순방향 유효전력량",
       "type": "power",
       "address": "32",
-      "accumulationAddress": "34"
+      "accumulationAddress": "100"
     },
     {
       "id": "sujul-1",

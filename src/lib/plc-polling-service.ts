@@ -31,10 +31,22 @@ interface CachedData {
   error?: string;
 }
 
+/**
+ * 메모리 히스토리 데이터 포인트
+ * 최근 20개의 폴링 결과를 저장하기 위한 구조
+ */
+export interface HistoryDataPoint {
+  timestamp: number;
+  address: string;
+  value: number;
+}
+
 class PLCPollingService {
   private pollingConfigs = new Map<string, PollingConfig>();
   private cachedData = new Map<string, CachedData>();
   private pollingIntervals = new Map<string, NodeJS.Timeout>();
+  private dataHistory = new Map<string, HistoryDataPoint[]>(); // 주소별 최근 20개 히스토리
+  private readonly HISTORY_LIMIT = 20; // 메모리에 저장할 최대 데이터 포인트 개수
 
   /**
    * 폴링 설정 등록 및 시작
@@ -110,6 +122,26 @@ class PLCPollingService {
   }
 
   /**
+   * 메모리 히스토리에서 특정 주소의 최근 데이터 조회
+   * @param address - 조회할 주소 (예: D4032)
+   * @returns 최근 20개의 데이터 포인트 배열
+   */
+  getDataHistory(address: string): HistoryDataPoint[] {
+    return this.dataHistory.get(address) || [];
+  }
+
+  /**
+   * 모든 주소의 메모리 히스토리 데이터 조회
+   */
+  getAllDataHistory(): Record<string, HistoryDataPoint[]> {
+    const result: Record<string, HistoryDataPoint[]> = {};
+    this.dataHistory.forEach((value, key) => {
+      result[key] = value;
+    });
+    return result;
+  }
+
+  /**
    * 프라이빗 메서드들
    */
   private getKey(ip: string, port: number): string {
@@ -158,8 +190,34 @@ class PLCPollingService {
           cached.error = undefined;
         }
 
-        // DB에 저장 (realtime-data-service 사용)
+        // 타임스탬프
         const timestamp = Date.now();
+
+        // 메모리 히스토리에 저장 (주소별 최근 20개)
+        Object.entries(data).forEach(([address, value]) => {
+          const numValue = typeof value === "number" ? value : 0;
+          const historyPoint: HistoryDataPoint = {
+            timestamp,
+            address,
+            value: numValue,
+          };
+
+          // 기존 히스토리 가져오기 또는 새로 생성
+          const history = this.dataHistory.get(address) || [];
+
+          // 새 데이터 추가
+          history.push(historyPoint);
+
+          // 최근 20개만 유지 (오래된 것부터 제거)
+          if (history.length > this.HISTORY_LIMIT) {
+            history.shift();
+          }
+
+          // 히스토리 업데이트
+          this.dataHistory.set(address, history);
+        });
+
+        // DB에 저장 (realtime-data-service 사용)
         const testDataPoints = Object.entries(data).map(([address, value]) => ({
           timestamp,
           address,

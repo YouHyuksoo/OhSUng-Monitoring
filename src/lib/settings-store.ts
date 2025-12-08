@@ -52,6 +52,8 @@ export interface Settings {
   // 온도 차트 Y축 범위 설정
   tempChartYMin: number; // 온도 차트 Y축 최소값 (기본값: 0)
   tempChartYMax: number; // 온도 차트 Y축 최대값 (기본값: 100)
+  // 폴링 데이터 소스 선택
+  useMemoryPolling?: boolean; // true: 메모리의 최근 20개 데이터 사용 (빠름), false: DB 사용 (안정성, 기본값)
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -78,6 +80,7 @@ const DEFAULT_SETTINGS: Settings = {
   powerDataHours: 6, // 실시간 전력량 표시 시간 (6시간)
   tempChartYMin: 0, // 온도 차트 Y축 최소값
   tempChartYMax: 100, // 온도 차트 Y축 최대값
+  useMemoryPolling: false, // 데이터 소스: false = DB (기본값), true = 메모리
   chartConfigs: [
     // ⚡ 전력 데이터 (WORD 주소 기준)
     // 규칙: PC 주소 - 6000 = WORD
