@@ -19,6 +19,7 @@ import { logger, LogLevel, LogEntry } from "@/lib/logger";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function LogsPage() {
+  const [mounted, setMounted] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filter, setFilter] = useState<LogLevel | "all">("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,6 +31,7 @@ export default function LogsPage() {
 
   // 로거에서 실제 로그 가져오기 및 실시간 업데이트 구독
   useEffect(() => {
+    setMounted(true);
     // 초기 로그 로드
     setLogs(logger.getLogs());
 
@@ -142,7 +144,7 @@ export default function LogsPage() {
           {/* 검색 */}
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              {mounted && <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />}
               <input
                 type="text"
                 placeholder="로그 검색..."
@@ -218,21 +220,21 @@ export default function LogsPage() {
               }`}
               title={autoScroll ? "자동 스크롤 켜짐" : "자동 스크롤 꺼짐"}
             >
-              <RefreshCw className="w-4 h-4" />
+              {mounted && <RefreshCw className="w-4 h-4" />}
             </button>
             <button
               onClick={handleDownloadLogs}
               className="p-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md transition-colors"
               title="로그 다운로드"
             >
-              <Download className="w-4 h-4" />
+              {mounted && <Download className="w-4 h-4" />}
             </button>
             <button
               onClick={handleClearLogs}
               className="p-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors"
               title="로그 삭제"
             >
-              <Trash2 className="w-4 h-4" />
+              {mounted && <Trash2 className="w-4 h-4" />}
             </button>
           </div>
         </div>

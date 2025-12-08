@@ -70,6 +70,7 @@ interface RealtimeChartProps {
   dataLimit?: number; // 표시할 데이터 개수 (개수 기준)
   dataHours?: number; // 표시할 데이터 시간 범위 (시간 기준)
   onMaximize?: () => void; // 크게보기 콜백 함수 (선택적)
+  isPollingActive?: boolean; // 폴링 활성화 상태 (주기적 갱신 여부)
 }
 
 export function RealtimeChart({
@@ -86,7 +87,9 @@ export function RealtimeChart({
   dataLimit,
   dataHours,
   onMaximize,
+  isPollingActive = false,
 }: RealtimeChartProps) {
+  const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<DataPoint[]>([]);
   const [isAlarm, setIsAlarm] = useState(false);
   const { theme } = useTheme();
@@ -94,107 +97,130 @@ export function RealtimeChart({
   const chartRef = useRef<ChartJS<"line">>(null);
 
   /**
+   * 클라이언트 마운트 확인
+   */
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  /**
    * DB에서 실시간 데이터 조회 함수
    * - dataHours 우선: N시간 범위 데이터 조회
    * - dataLimit: 최근 N개 데이터 조회
-   * - DB가 시간순 정렬해서 주므로 그대로 표시
    */
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    const controller = new AbortController();
+  const fetchDataFromDB = async () => {
+    try {
+      const controller = new AbortController();
 
-    const fetchDataFromDB = async () => {
-      try {
-        // DB에서 데이터 조회 (hours 우선, 없으면 limit 사용)
-        let url = `/api/realtime/data?address=${address}`;
+      // DB에서 데이터 조회 (hours 우선, 없으면 limit 사용)
+      let url = `/api/realtime/data?address=${address}`;
 
-        if (dataHours !== undefined) {
-          // 시간 범위로 조회 (전력량 차트)
-          url += `&hours=${dataHours}`;
-        } else if (dataLimit !== undefined) {
-          // 개수로 조회 (온도 차트)
-          url += `&limit=${dataLimit}`;
+      if (dataHours !== undefined) {
+        // 시간 범위로 조회 (전력량 차트)
+        url += `&hours=${dataHours}`;
+      } else if (dataLimit !== undefined) {
+        // 개수로 조회 (온도 차트)
+        url += `&limit=${dataLimit}`;
+      }
+
+      if (setAddress) {
+        url += `&setAddress=${setAddress}`;
+      }
+
+      console.log(`[RealtimeChart] 🔄 Fetching from: ${url}`);
+
+      const res = await fetch(url, { signal: controller.signal });
+
+      console.log(`[RealtimeChart] 📍 Response status: ${res.status}`);
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `HTTP Error: ${res.status}`);
+      }
+
+      const json = await res.json();
+
+      console.log(`[RealtimeChart] 📊 Data received:`, json);
+
+      // 필수 데이터 검증
+      if (!json || !Array.isArray(json.data)) {
+        throw new Error(`Invalid data received for address ${address}`);
+      }
+
+      // 데이터 변환 (DB 포인트 → 차트 포인트)
+      const chartData: DataPoint[] = json.data.map(
+        (point: {
+          timestamp: number;
+          value: number;
+          setAddress?: number;
+        }) => {
+          const date = new Date(point.timestamp);
+          const timeStr = `${date.getHours()}:${date
+            .getMinutes()
+            .toString()
+            .padStart(2, "0")}:${date
+            .getSeconds()
+            .toString()
+            .padStart(2, "0")}`;
+
+          return {
+            time: timeStr,
+            current: point.value,
+            set: point.setAddress ?? point.value,
+          };
         }
+      );
 
-        if (setAddress) {
-          url += `&setAddress=${setAddress}`;
-        }
+      console.log(`[RealtimeChart] ✅ Chart data processed: ${chartData.length} points`);
 
-        const res = await fetch(url, { signal: controller.signal });
+      // 데이터 업데이트
+      setData(chartData);
 
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || `HTTP Error: ${res.status}`);
-        }
-
-        const json = await res.json();
-
-        // 필수 데이터 검증
-        if (!json || !Array.isArray(json.data)) {
-          throw new Error(`Invalid data received for address ${address}`);
-        }
-
-        // 데이터 변환 (DB 포인트 → 차트 포인트)
-        const chartData: DataPoint[] = json.data.map(
-          (point: {
-            timestamp: number;
-            value: number;
-            setAddress?: number;
-          }) => {
-            const date = new Date(point.timestamp);
-            const timeStr = `${date.getHours()}:${date
-              .getMinutes()
-              .toString()
-              .padStart(2, "0")}:${date
-              .getSeconds()
-              .toString()
-              .padStart(2, "0")}`;
-
-            return {
-              time: timeStr,
-              current: point.value,
-              set: point.setAddress ?? point.value,
-            };
-          }
-        );
-
-        // 데이터 업데이트
-        setData(chartData);
-
-        // 최신 값으로 알람 체크
-        if (chartData.length > 0) {
-          const latestPoint = chartData[chartData.length - 1];
-          if (minThreshold !== undefined && maxThreshold !== undefined) {
-            setIsAlarm(
-              latestPoint.current < minThreshold ||
-                latestPoint.current > maxThreshold
-            );
-          }
-        }
-      } catch (error) {
-        // AbortError는 무시 (의도된 취소)
-        if (error instanceof Error && error.name === "AbortError") {
-          return;
-        }
-
-        logger.error(`DB 데이터 조회 실패: ${address}`, "RealtimeChart", error);
-        // 데이터 없을 때도 자동으로 재시도
-      } finally {
-        // 다음 조회 예약 (에러 발생해도 계속 시도)
-        if (!controller.signal.aborted) {
-          timeoutId = setTimeout(fetchDataFromDB, settings.monitoringRefreshInterval); // 설정된 주기로 갱신
+      // 최신 값으로 알람 체크
+      if (chartData.length > 0) {
+        const latestPoint = chartData[chartData.length - 1];
+        if (minThreshold !== undefined && maxThreshold !== undefined) {
+          setIsAlarm(
+            latestPoint.current < minThreshold ||
+              latestPoint.current > maxThreshold
+          );
         }
       }
-    };
+    } catch (error) {
+      console.error(`[RealtimeChart] ❌ Failed to fetch data for address ${address}:`, error);
+      logger.error(`DB 데이터 조회 실패: ${address}`, "RealtimeChart", error);
+    }
+  };
 
-    fetchDataFromDB(); // 초기 데이터 로드
+  /**
+   * 초기 데이터 로드 (페이지 진입 시 1회)
+   * - address가 변경될 때마다 새로운 차트 데이터 로드
+   */
+  useEffect(() => {
+    console.log(`[RealtimeChart] 📊 Loading data for address: ${address}, setAddress: ${setAddress}`);
+    fetchDataFromDB();
+  }, [address, setAddress]);
 
-    // 정리 함수
-    return () => {
-      controller.abort(); // 진행 중인 요청 취소
-      clearTimeout(timeoutId); // 대기 중인 타이머 취소
-    };
-  }, [address, setAddress, minThreshold, maxThreshold, dataLimit, dataHours, settings.monitoringRefreshInterval]);
+  /**
+   * 주기적인 데이터 갱신 (폴링 활성화 시에만)
+   * - isPollingActive가 true일 때만 주기적으로 DB 데이터 조회
+   * - monitoringRefreshInterval: 모니터링 화면에서 DB 데이터를 조회하는 주기 (기본값: 10초)
+   */
+  useEffect(() => {
+    // 폴링이 활성화되지 않았으면 주기적 갱신 없음
+    if (!isPollingActive) {
+      return;
+    }
+
+    // 모니터링 갱신 주기 (settings에서 관리, 기본값 10000ms)
+    const refreshInterval = settings?.monitoringRefreshInterval || 10000;
+
+    const interval = setInterval(() => {
+      fetchDataFromDB();
+    }, refreshInterval);
+
+    return () => clearInterval(interval);
+  }, [address, setAddress, isPollingActive, settings?.monitoringRefreshInterval]);
 
   const currentValue = data.length > 0 ? data[data.length - 1].current : 0;
   const setValue = data.length > 0 ? data[data.length - 1].set : 0;
@@ -375,7 +401,7 @@ export function RealtimeChart({
             className="flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded w-6 h-6 transition-colors shadow-sm"
             title="크게보기"
           >
-            <Maximize2 className="w-3.5 h-3.5" />
+            {mounted && <Maximize2 className="w-3.5 h-3.5" />}
           </button>
         )}
       </div>

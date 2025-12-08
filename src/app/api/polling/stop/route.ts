@@ -8,7 +8,6 @@
 import { NextResponse } from "next/server";
 import { realtimeDataService } from "@/lib/realtime-data-service";
 import { hourlyEnergyService } from "@/lib/hourly-energy-service";
-import { stopAllPolling } from "@/lib/polling-state";
 
 export async function POST() {
   try {
@@ -19,10 +18,6 @@ export async function POST() {
     // 시간별 에너지 폴링 중지
     hourlyEnergyService.stopHourlyPolling();
     console.log("[API] Hourly energy polling stopped");
-
-    // ✅ 파일 기반 상태 업데이트 (프로세스간 공유)
-    stopAllPolling();
-    console.log("[API] Polling state file updated");
 
     return NextResponse.json({
       success: true,

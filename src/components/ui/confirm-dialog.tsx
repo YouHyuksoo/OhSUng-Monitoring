@@ -7,6 +7,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 
 interface ConfirmDialogProps {
@@ -28,6 +29,11 @@ export function ConfirmDialog({
   onCancel,
   variant = "warning",
 }: ConfirmDialogProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const variantStyles = {
     danger: "bg-red-600 hover:bg-red-700",
     warning: "bg-yellow-600 hover:bg-yellow-700",
@@ -51,7 +57,7 @@ export function ConfirmDialog({
             onClick={onCancel}
             className="text-muted-foreground hover:text-foreground transition-colors"
           >
-            <X className="w-5 h-5" />
+            {mounted && <X className="w-5 h-5" />}
           </button>
         </div>
 

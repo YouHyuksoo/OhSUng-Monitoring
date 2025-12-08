@@ -6,7 +6,9 @@
     "dev": "next dev -p 3002",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "debug:plc": "node debug-plc.js",
+    "debug:modbus": "node debug-modbus.js"
   },
   "dependencies": {
     "better-sqlite3": "^12.4.6",

@@ -2,9 +2,12 @@
  * @file src/lib/hourly-energy-service.ts
  * @description
  * 일일 전력 누적 데이터 1시간 단위 폴링 서비스 (SQLite)
- * - D6100 주소에서 매 정각마다 데이터 수집
+ * - WORD 100 (Modbus) 주소에서 매 정각마다 누적 전력량 수집
  * - 서버 시간 기준으로 SQLite에 저장
  * - 날짜별 단일 행에 24개 시간 컬럼 (h0~h23) 저장
+ *
+ * 주소 매핑:
+ * - WORD 100 = PC 주소 D6100 (전력 누적: Wh)
  *
  * 데이터베이스 스키마:
  * - daily_energy 테이블: date(PK), h0~h23, last_update
@@ -22,7 +25,6 @@ import { McPLC } from "./mc-plc";
 import { XgtModbusPLC } from "./xgt-modbus-plc";
 import { plc as mockPlc } from "./mock-plc";
 import { PLCConnector } from "./plc-connector";
-import { setHourlyPolling } from "./polling-state";
 
 /**
  * 날짜별 에너지 데이터 (단일 행)
@@ -124,13 +126,15 @@ class HourlyEnergyService {
 
   /**
    * 1시간 단위 폴링 시작
+   * - 한 번만 PLC 연결 체크 후 성공하면 폴링 루프 시작
+   * - 연결 실패하면 에러 던짐 (폴링 루프 시작 안 함)
    */
-  startHourlyPolling(
+  async startHourlyPolling(
     ip: string,
     port: number,
     plcType: string = "mc",
     addressMapping?: any
-  ): void {
+  ): Promise<void> {
     this.ip = ip;
     this.port = port;
 
@@ -145,27 +149,42 @@ class HourlyEnergyService {
     } else if (plcType === "modbus") {
       const mapping = addressMapping || { dAddressBase: 0, modbusOffset: 0 };
       this.connection = new XgtModbusPLC(ip, port, 1, mapping);
-      console.log(
-        `[HourlyEnergyService] Connecting to LS Modbus TCP at ${ip}:${port}`
-      );
     } else {
       this.connection = McPLC.getInstance(ip, port);
-      console.log(
-        `[HourlyEnergyService] Connecting to Mitsubishi MC at ${ip}:${port}`
-      );
+    }
+
+    // 🔴 핵심: 한 번만 연결 체크 (demo 모드 제외)
+    if (plcType !== "demo") {
+      console.log(`[HourlyEnergyService] Testing connection to ${ip}:${port}...`);
+      try {
+        // 전력 누적 데이터 주소: WORD 100 (D6100 → 100)
+        const testData = await this.connection.read(["100"]);
+
+        // null 값이 포함되어 있으면 연결 실패로 판단
+        const hasNull = Object.values(testData).some(val => val === null);
+        if (hasNull) {
+          throw new Error("PLC에서 응답이 없습니다");
+        }
+
+        console.log(
+          `[HourlyEnergyService] ✅ Connection successful, starting polling loop`
+        );
+      } catch (error) {
+        const errorMsg =
+          error instanceof Error ? error.message : String(error);
+        console.error(
+          `[HourlyEnergyService] ❌ Connection test failed: ${errorMsg}`
+        );
+        this.connection = null;
+        throw new Error(`PLC 연결 실패: ${errorMsg}`);
+      }
     }
 
     // 오늘 데이터 로드
     this.loadTodayData();
 
-    // 즉시 한 번 실행
-    this.pollD6100();
-
     // 다음 정각 스케줄링
     this.scheduleNextPoll();
-
-    // ✅ 파일에 폴링 상태 저장 (프로세스간 공유)
-    setHourlyPolling(true);
 
     console.log(`[HourlyEnergyService] Started for ${ip}:${port}`);
   }
@@ -178,9 +197,6 @@ class HourlyEnergyService {
       clearTimeout(this.pollingInterval);
       this.pollingInterval = null;
     }
-
-    // ✅ 파일에 폴링 상태 저장 (프로세스간 공유)
-    setHourlyPolling(false);
   }
 
   /**
@@ -530,7 +546,7 @@ class HourlyEnergyService {
         this.loadTodayData();
       }
 
-      // D6100 데이터 읽기 - 실제 통신 시작
+      // 전력 누적 데이터 읽기 (WORD 100) - 실제 통신 시작
       const hour = this.getCurrentHour();
       const startTime = Date.now();
 
@@ -538,8 +554,9 @@ class HourlyEnergyService {
         `[HourlyEnergyService] Poll started - ${today} ${hour}:00:00, connecting to PLC...`
       );
 
-      const data = await this.connection.read(["D6100"]);
-      const value = data["D6100"];
+      // 전력 누적 데이터 주소: WORD 100 (D6100 → 100)
+      const data = await this.connection.read(["100"]);
+      const value = data["100"];
       const elapsed = Date.now() - startTime;
 
       if (typeof value === "number") {
@@ -556,7 +573,7 @@ class HourlyEnergyService {
 
           // 성공 로그
           console.log(
-            `[HourlyEnergyService] ✅ Poll success - D6100: ${value}Wh (${elapsed}ms)`
+            `[HourlyEnergyService] ✅ Poll success - WORD 100: ${value}Wh (${elapsed}ms)`
           );
         } else {
           console.error(
@@ -565,7 +582,7 @@ class HourlyEnergyService {
         }
       } else {
         console.warn(
-          `[HourlyEnergyService] ⚠️  Invalid value for D6100: ${JSON.stringify(value)} (${elapsed}ms)`
+          `[HourlyEnergyService] ⚠️  Invalid value for WORD 100: ${JSON.stringify(value)} (${elapsed}ms)`
         );
         this.scheduleNextPoll();
       }

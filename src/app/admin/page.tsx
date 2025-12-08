@@ -34,15 +34,6 @@ import {
   Trash2,
 } from "lucide-react";
 
-interface PollingStatus {
-  status: string;
-  services: {
-    realtime: { isPolling: boolean; lastUpdate: string; message: string };
-    hourly: { isPolling: boolean; lastUpdate: string; message: string };
-  };
-  timestamp: number;
-}
-
 interface DBStats {
   database: {
     filePath: string;
@@ -70,34 +61,18 @@ export default function AdminPage() {
   const router = useRouter();
   const { settings, updateSettings } = useSettings();
 
-  const [pollingStatus, setPollingStatus] = useState<PollingStatus | null>(
-    null
-  );
+  const [mounted, setMounted] = useState(false);
   const [dbStats, setDbStats] = useState<DBStats | null>(null);
   const [isStartingPolling, setIsStartingPolling] = useState(false);
   const [isStoppingPolling, setIsStoppingPolling] = useState(false);
   const [isCleaningDB, setIsCleaningDB] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState<string>(
-    new Date().toLocaleTimeString()
-  );
+  const [lastRefresh, setLastRefresh] = useState<string>("");
   const [isPollingActive, setIsPollingActive] = useState(false);
   const [showCleanupDialog, setShowCleanupDialog] = useState(false);
   const [daysToKeep, setDaysToKeep] = useState("7");
+  const [pollingErrorDialog, setPollingErrorDialog] = useState(false);
+  const [pollingErrorMessage, setPollingErrorMessage] = useState("");
 
-  // 폴링 상태 조회
-  const checkPollingStatus = async () => {
-    try {
-      const response = await fetch("/api/polling/status");
-      if (response.ok) {
-        const data = await response.json();
-        setPollingStatus(data);
-        setIsPollingActive(data.status === "running");
-        setLastRefresh(new Date().toLocaleTimeString());
-      }
-    } catch (error) {
-      console.error("Failed to check polling status:", error);
-    }
-  };
 
   // DB 통계 조회
   const checkDBStats = async () => {
@@ -108,141 +83,87 @@ export default function AdminPage() {
         setDbStats(data);
       }
     } catch (error) {
-      console.error("Failed to check DB stats:", error);
+      // 백엔드가 응답 없을 때는 조용히 무시 (불필요한 에러 로그 방지)
     }
   };
 
-  // 초기 로드 및 자동 갱신
+  // 초기 로드
   useEffect(() => {
-    checkPollingStatus();
+    setMounted(true);
+    // 초기값 설정 (hydration 에러 방지)
+    if (!lastRefresh) {
+      setLastRefresh(new Date().toLocaleTimeString());
+    }
+    // 페이지 진입 시 딱 한 번만 DB 통계 조회
     checkDBStats();
-    const interval = setInterval(() => {
-      checkPollingStatus();
-      checkDBStats();
-    }, 5000); // 5초마다 갱신
-    return () => clearInterval(interval);
   }, []);
 
   /**
    * 폴링 서비스 시작
-   * - 재시도 로직: 최대 3회 재시도 (서버 지연으로 인한 상태 불일치 방지)
-   * - 재시도 간격: 1초
+   * - 설정 검증만 수행 (IP, Port, chartConfigs)
+   * - 검증 성공하면 폴링 시작
+   * - 실패하면 dialog로 에러 표시
    */
   const handleStartPolling = async () => {
     setIsStartingPolling(true);
-    let retries = 0;
-    const maxRetries = 3;
-
-    const attemptStart = async (): Promise<boolean> => {
-      try {
-        console.log("[Admin] Starting polling attempt...");
-
-        // 1. 시간별 에너지 폴링 시작
-        console.log("[Admin] Calling /api/energy/hourly...");
-        const hourlyResponse = await fetch("/api/energy/hourly", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ip: settings.plcIp,
-            port: settings.plcPort,
-            plcType: settings.plcType,
-            modbusAddressMapping: settings.modbusAddressMapping,
-          }),
-        });
-
-        if (!hourlyResponse.ok) {
-          throw new Error(
-            `시간별 에너지 폴링 시작 실패: ${hourlyResponse.statusText}`
-          );
-        }
-        console.log("[Admin] Hourly polling started successfully");
-
-        // 2. 실시간 데이터 폴링 시작
-        console.log("[Admin] Calling /api/realtime/polling...");
-        const realtimeResponse = await fetch("/api/realtime/polling", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ip: settings.plcIp,
-            port: settings.plcPort,
-            interval: settings.plcPollingInterval,
-            chartConfigs: settings.chartConfigs,
-            plcType: settings.plcType,
-            modbusAddressMapping: settings.modbusAddressMapping,
-          }),
-        });
-
-        if (!realtimeResponse.ok) {
-          throw new Error(
-            `실시간 데이터 폴링 시작 실패: ${realtimeResponse.statusText}`
-          );
-        }
-        console.log("[Admin] Realtime polling started successfully");
-
-        // 상태 갱신 대기 (서버가 폴링을 완전히 시작하도록)
-        console.log("[Admin] Waiting 800ms for services to initialize...");
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        // 상태 확인
-        console.log("[Admin] Checking polling status...");
-        const statusResponse = await fetch("/api/polling/status");
-        if (statusResponse.ok) {
-          const data = await statusResponse.json();
-          console.log(`[Admin] Polling status response:`, data);
-
-          // 폴링이 실제로 시작되었는지 확인
-          if (data.status === "running") {
-            console.log("[Admin] ✅ Polling confirmed as running");
-            setIsPollingActive(true);
-            return true;
-          } else {
-            console.warn(
-              `[Admin] ⚠️ Status is not 'running': ${data.status}`
-            );
-          }
-        } else {
-          console.error(
-            `[Admin] Status API error: ${statusResponse.status} ${statusResponse.statusText}`
-          );
-        }
-
-        return false;
-      } catch (error) {
-        console.error("[Admin] Failed to start polling:", error);
-        return false;
-      }
-    };
 
     try {
-      // 폴링 시작 시도
-      while (retries < maxRetries) {
-        const success = await attemptStart();
-        if (success) {
-          console.log("[Admin] Polling started successfully");
-          return;
-        }
-
-        retries++;
-        if (retries < maxRetries) {
-          console.warn(
-            `[Admin] Polling start failed, retry ${retries}/${maxRetries}`
-          );
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
+      // 0. 설정 검증 (필수값 체크)
+      if (!settings.plcIp || !settings.plcPort) {
+        throw new Error("PLC IP/Port 설정이 필요합니다");
+      }
+      if (!settings.chartConfigs || settings.chartConfigs.length === 0) {
+        throw new Error("모니터링할 차트 설정이 필요합니다");
       }
 
-      // 최대 재시도 초과
-      throw new Error(
-        "폴링 서비스 시작 실패: 서버 응답 없음 (최대 재시도 초과)"
-      );
+      // 1. 시간별 에너지 폴링 시작
+      const hourlyResponse = await fetch("/api/energy/hourly", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ip: settings.plcIp,
+          port: settings.plcPort,
+          plcType: settings.plcType,
+          modbusAddressMapping: settings.modbusAddressMapping,
+        }),
+      });
+
+      if (!hourlyResponse.ok) {
+        const errorData = await hourlyResponse.json();
+        throw new Error(errorData.error || "시간별 에너지 폴링 시작 실패");
+      }
+
+      // 2. 실시간 데이터 폴링 시작
+      const realtimeResponse = await fetch("/api/realtime/polling", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ip: settings.plcIp,
+          port: settings.plcPort,
+          interval: settings.plcPollingInterval,
+          chartConfigs: settings.chartConfigs,
+          plcType: settings.plcType,
+          modbusAddressMapping: settings.modbusAddressMapping,
+        }),
+      });
+
+      if (!realtimeResponse.ok) {
+        const errorData = await realtimeResponse.json();
+        throw new Error(errorData.error || "실시간 데이터 폴링 시작 실패");
+      }
+
+      // 성공 시에만 UI 업데이트
+      setIsPollingActive(true);
+      setLastRefresh(new Date().toLocaleTimeString());
+
     } catch (error) {
       console.error("Failed to start polling:", error);
-      alert(
-        "폴링 서비스 시작 실패: " +
-          (error instanceof Error ? error.message : "Unknown error")
-      );
-      // 실패 시 상태 갱신
-      await checkPollingStatus();
+      const errorMsg = error instanceof Error ? error.message : "알 수 없는 오류";
+      setPollingErrorMessage(errorMsg);
+      setPollingErrorDialog(true);
+      setIsPollingActive(false);
+      // 실패 시 폴링 중지
+      await fetch("/api/polling/stop", { method: "POST" }).catch(() => {});
     } finally {
       setIsStartingPolling(false);
     }
@@ -250,76 +171,21 @@ export default function AdminPage() {
 
   /**
    * 폴링 서비스 중지
-   * - 재시도 로직: 최대 3회 재시도
-   * - 재시도 간격: 1초
+   * - API 호출만 수행
    */
   const handleStopPolling = async () => {
     setIsStoppingPolling(true);
-    let retries = 0;
-    const maxRetries = 3;
-
-    const attemptStop = async (): Promise<boolean> => {
-      try {
-        const response = await fetch("/api/polling/stop", {
-          method: "POST",
-        });
-
-        if (!response.ok) {
-          throw new Error(`폴링 서비스 중지 실패: ${response.statusText}`);
-        }
-
-        // 상태 갱신 대기 (서버가 폴링을 완전히 중지하도록)
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        // 상태 확인
-        const statusResponse = await fetch("/api/polling/status");
-        if (statusResponse.ok) {
-          const data = await statusResponse.json();
-
-          // 폴링이 실제로 중지되었는지 확인
-          if (data.status === "stopped") {
-            setIsPollingActive(false);
-            return true;
-          }
-        }
-
-        return false;
-      } catch (error) {
-        console.error("Failed to stop polling:", error);
-        return false;
-      }
-    };
+    setIsPollingActive(false);
+    setLastRefresh(new Date().toLocaleTimeString());
 
     try {
-      // 폴링 중지 시도
-      while (retries < maxRetries) {
-        const success = await attemptStop();
-        if (success) {
-          console.log("[Admin] Polling stopped successfully");
-          return;
-        }
-
-        retries++;
-        if (retries < maxRetries) {
-          console.warn(
-            `[Admin] Polling stop failed, retry ${retries}/${maxRetries}`
-          );
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-      }
-
-      // 최대 재시도 초과
-      throw new Error(
-        "폴링 서비스 중지 실패: 서버 응답 없음 (최대 재시도 초과)"
-      );
+      await fetch("/api/polling/stop", {
+        method: "POST",
+      });
     } catch (error) {
       console.error("Failed to stop polling:", error);
-      alert(
-        "폴링 서비스 중지 실패: " +
-          (error instanceof Error ? error.message : "Unknown error")
-      );
-      // 실패 시 상태 갱신
-      await checkPollingStatus();
+      alert("폴링 중지 실패. 다시 시도하세요.");
+      setIsPollingActive(true);
     } finally {
       setIsStoppingPolling(false);
     }
@@ -358,7 +224,7 @@ export default function AdminPage() {
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-10 h-10 bg-blue-500/20 rounded-lg">
-                <Activity className="w-6 h-6 text-blue-400" />
+                {mounted && <Activity className="w-6 h-6 text-blue-400" />}
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">폴링 서비스</h2>
@@ -426,52 +292,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* 서비스 상태 상세 */}
-          {pollingStatus && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {/* 실시간 데이터 폴링 */}
-              <div className="p-4 bg-slate-700/20 border border-slate-600 rounded-lg">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {pollingStatus.services.realtime.isPolling ? (
-                      <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5 text-red-400" />
-                    )}
-                    <div>
-                      <p className="font-semibold text-white text-sm">
-                        실시간 데이터 폴링
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {pollingStatus.services.realtime.message}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 시간별 에너지 폴링 */}
-              <div className="p-4 bg-slate-700/20 border border-slate-600 rounded-lg">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {pollingStatus.services.hourly.isPolling ? (
-                      <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5 text-red-400" />
-                    )}
-                    <div>
-                      <p className="font-semibold text-white text-sm">
-                        시간별 에너지 폴링
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {pollingStatus.services.hourly.message}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* 액션 버튼 */}
           <div className="flex gap-3">
@@ -480,7 +300,7 @@ export default function AdminPage() {
               disabled={isStartingPolling || isPollingActive}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Play className="w-4 h-4" />
+              {mounted && <Play className="w-4 h-4" />}
               {isStartingPolling ? "시작 중..." : "폴링 시작"}
             </button>
             <button
@@ -488,15 +308,8 @@ export default function AdminPage() {
               disabled={isStoppingPolling || !isPollingActive}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 disabled:bg-slate-600 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Square className="w-4 h-4" />
+              {mounted && <Square className="w-4 h-4" />}
               {isStoppingPolling ? "중지 중..." : "폴링 중지"}
-            </button>
-            <button
-              onClick={checkPollingStatus}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              상태 갱신
             </button>
           </div>
         </div>
@@ -506,13 +319,23 @@ export default function AdminPage() {
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-10 h-10 bg-cyan-500/20 rounded-lg">
-                <Database className="w-6 h-6 text-cyan-400" />
+                {mounted && <Database className="w-6 h-6 text-cyan-400" />}
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">데이터베이스</h2>
                 <p className="text-sm text-slate-400">SQLite DB 상태 및 관리</p>
               </div>
             </div>
+            <button
+              onClick={() => {
+                checkDBStats();
+                setLastRefresh(new Date().toLocaleTimeString());
+              }}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg transition-colors"
+            >
+              {mounted && <RefreshCw className="w-4 h-4" />}
+              새로고침
+            </button>
           </div>
 
           {/* DB 통계 */}
@@ -598,7 +421,7 @@ export default function AdminPage() {
             onClick={() => setShowCleanupDialog(true)}
             className="flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors w-full"
           >
-            <Trash2 className="w-4 h-4" />
+            {mounted && <Trash2 className="w-4 h-4" />}
             오래된 데이터 정리
           </button>
         </div>
@@ -613,7 +436,7 @@ export default function AdminPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-purple-500/0 group-hover:from-purple-500/10 group-hover:to-purple-500/5 transition-all duration-300" />
             <div className="relative z-10">
               <div className="flex items-center justify-center w-10 h-10 bg-purple-500/20 rounded-lg mb-3">
-                <Settings className="w-6 h-6 text-purple-400" />
+                {mounted && <Settings className="w-6 h-6 text-purple-400" />}
               </div>
               <h3 className="text-lg font-bold text-white mb-2">설정 관리</h3>
               <p className="text-sm text-slate-300 mb-4">
@@ -636,7 +459,7 @@ export default function AdminPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/0 group-hover:from-amber-500/10 group-hover:to-amber-500/5 transition-all duration-300" />
             <div className="relative z-10">
               <div className="flex items-center justify-center w-10 h-10 bg-amber-500/20 rounded-lg mb-3">
-                <FileText className="w-6 h-6 text-amber-400" />
+                {mounted && <FileText className="w-6 h-6 text-amber-400" />}
               </div>
               <h3 className="text-lg font-bold text-white mb-2">로그 관리</h3>
               <p className="text-sm text-slate-300 mb-4">
@@ -659,7 +482,7 @@ export default function AdminPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 to-green-500/0 group-hover:from-green-500/10 group-hover:to-green-500/5 transition-all duration-300" />
             <div className="relative z-10">
               <div className="flex items-center justify-center w-10 h-10 bg-green-500/20 rounded-lg mb-3">
-                <AlertCircle className="w-6 h-6 text-green-400" />
+                {mounted && <AlertCircle className="w-6 h-6 text-green-400" />}
               </div>
               <h3 className="text-lg font-bold text-white mb-2">도움말</h3>
               <p className="text-sm text-slate-300 mb-4">
@@ -675,6 +498,31 @@ export default function AdminPage() {
           </button>
         </div>
       </div>
+
+      {/* 폴링 시작 에러 다이얼로그 */}
+      {pollingErrorDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 border border-red-700/50 rounded-xl p-6 max-w-sm w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center justify-center w-10 h-10 bg-red-500/20 rounded-lg">
+                {mounted && <AlertCircle className="w-6 h-6 text-red-400" />}
+              </div>
+              <h3 className="text-lg font-bold text-white">폴링 시작 실패</h3>
+            </div>
+            <p className="text-sm text-slate-300 mb-6">
+              {pollingErrorMessage}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPollingErrorDialog(false)}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 데이터 정리 다이얼로그 */}
       {showCleanupDialog && (

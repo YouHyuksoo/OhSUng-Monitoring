@@ -18,7 +18,6 @@ import { McPLC } from "./mc-plc";
 import { XgtModbusPLC } from "./xgt-modbus-plc";
 import { plc as mockPlc } from "./mock-plc";
 import { PLCConnector } from "./plc-connector";
-import { setRealtimePolling } from "./polling-state";
 
 /**
  * 실시간 데이터 포인트
@@ -79,15 +78,17 @@ class RealtimeDataService {
 
   /**
    * 실시간 폴링 시작
+   * - 한 번만 PLC 연결 체크 후 성공하면 폴링 루프 시작
+   * - 연결 실패하면 에러 던짐 (폴링 루프 시작 안 함)
    */
-  startPolling(
+  async startPolling(
     addresses: string[],
     ip: string,
     port: number,
     interval: number = 2000,
-    plcType: string = "mc", // isDemoMode 대신 plcType 사용
-    addressMapping?: any // Modbus 매핑 정보 추가
-  ): void {
+    plcType: string = "mc",
+    addressMapping?: any
+  ): Promise<void> {
     // DB 초기화
     if (!this.db) {
       this.initializeDatabase();
@@ -107,27 +108,46 @@ class RealtimeDataService {
       // Modbus TCP 연결
       const mapping = addressMapping || { dAddressBase: 0, modbusOffset: 0 };
       this.connection = new XgtModbusPLC(ip, port, 1, mapping);
-      console.log(
-        `[RealtimeDataService] Connecting to LS Modbus TCP at ${ip}:${port}`
-      );
     } else {
       // 기본값: Mitsubishi MC Protocol
       this.connection = McPLC.getInstance(ip, port);
-      console.log(
-        `[RealtimeDataService] Connecting to Mitsubishi MC at ${ip}:${port}`
-      );
     }
 
-    // 즉시 첫 폴링 실행
-    this.pollData();
+    // 🔴 핵심: 한 번만 연결 체크 (demo 모드 제외)
+    if (plcType !== "demo") {
+      console.log(`[RealtimeDataService] PLC 연결 테스트 중 ${ip}:${port}...`);
+      try {
+        const testData = await this.connection.read(addresses.slice(0, 1));
 
-    // 주기적 폴링 설정
+        // 결과 데이터 확인
+        const values = Object.values(testData);
+        console.log(`[RealtimeDataService] 📊 테스트 응답:`, testData);
+
+        // null 값만 있으면 실패 (0이나 다른 숫자는 정상 응답)
+        const hasOnlyNull = values.length === 0 ||
+                           values.every(val => val === null || val === undefined);
+        if (hasOnlyNull) {
+          throw new Error("PLC에서 유효한 응답이 없습니다");
+        }
+
+        console.log(
+          `[RealtimeDataService] ✅ PLC 연결 성공! 폴링 루프 시작`
+        );
+      } catch (error) {
+        const errorMsg =
+          error instanceof Error ? error.message : String(error);
+        console.error(
+          `[RealtimeDataService] ❌ 연결 테스트 실패: ${errorMsg}`
+        );
+        this.connection = null;
+        throw new Error(`PLC 연결 실패: ${errorMsg}`);
+      }
+    }
+
+    // 연결 성공 후 주기적 폴링 설정
     this.pollingInterval = setInterval(() => {
       this.pollData();
     }, interval);
-
-    // ✅ 파일에 폴링 상태 저장 (프로세스간 공유)
-    setRealtimePolling(true);
 
     console.log(
       `[RealtimeDataService] Started polling ${addresses.length} addresses with interval ${interval}ms`
@@ -143,9 +163,6 @@ class RealtimeDataService {
       this.pollingInterval = null;
     }
     this.memoryCache.clear();
-
-    // ✅ 파일에 폴링 상태 저장 (프로세스간 공유)
-    setRealtimePolling(false);
 
     console.log("[RealtimeDataService] Polling stopped");
   }
@@ -169,13 +186,23 @@ class RealtimeDataService {
       const data = await this.connection.read(this.currentAddresses);
       const timestamp = Date.now();
 
+      // 🔍 폴링 데이터 상세 로깅
+      console.log("\n" + "─".repeat(70));
+      console.log(`📊 [폴링 ${new Date().toLocaleTimeString("ko-KR")}]`);
+      console.log("─".repeat(70));
+      console.log("📍 주소별 값:");
+
       // 각 주소별로 데이터 저장
       Object.entries(data).forEach(([address, value]) => {
         if (typeof value === "number") {
+          console.log(`   ${address}: ${value}`);
           this.saveToDatabase(address, value, timestamp);
           this.updateMemoryCache(address, value, timestamp);
+        } else {
+          console.log(`   ${address}: ${value} (⚠️ 유효하지 않은 값)`);
         }
       });
+      console.log("─".repeat(70) + "\n");
     } catch (error) {
       console.error("[RealtimeDataService] Polling failed:", error);
     }

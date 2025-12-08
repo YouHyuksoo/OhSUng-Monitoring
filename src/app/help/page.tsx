@@ -7,6 +7,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Activity,
   Settings,
@@ -18,11 +19,17 @@ import {
 } from "lucide-react";
 
 export default function HelpPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-10 pb-20">
       <div className="border-b border-border pb-6">
         <h1 className="text-4xl font-bold flex items-center gap-3">
-          <HelpCircle className="w-10 h-10 text-primary" />
+          {mounted && <HelpCircle className="w-10 h-10 text-primary" />}
           도움말 및 가이드
         </h1>
         <p className="text-lg text-muted-foreground mt-3">
@@ -83,7 +90,7 @@ export default function HelpPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <h4 className="font-semibold flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-red-500" /> 전력 모니터링
+                  {mounted && <Activity className="w-4 h-4 text-red-500" />} 전력 모니터링
                 </h4>
                 <p className="text-sm text-muted-foreground">
                   설비로부터 유효 전력량을 실시간으로 표시합니다. 그래프의
@@ -122,7 +129,7 @@ export default function HelpPage() {
           {/* 알람 시스템 */}
           <div className="bg-red-50 dark:bg-red-950/20 p-4 rounded-lg border border-red-100 dark:border-red-900/30">
             <h3 className="text-base font-bold text-red-700 dark:text-red-400 mb-2 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" />
+              {mounted && <AlertTriangle className="w-5 h-5" />}
               주의: 이상 감지 알람 시스템
             </h3>
             <p className="text-sm text-red-600/80 dark:text-red-400/80 leading-relaxed">
@@ -154,7 +161,7 @@ export default function HelpPage() {
             {/* 일반 설정 */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 font-bold text-lg text-foreground">
-                <Settings className="w-5 h-5" /> 일반 설정
+                {mounted && <Settings className="w-5 h-5" />} 일반 설정
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
                 <li>
@@ -175,7 +182,7 @@ export default function HelpPage() {
             {/* PLC 연결 */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 font-bold text-lg text-foreground">
-                <RefreshCw className="w-5 h-5" /> PLC 연결 설정
+                {mounted && <RefreshCw className="w-5 h-5" />} PLC 연결 설정
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
                 <li>
@@ -192,7 +199,7 @@ export default function HelpPage() {
             {/* 차트 구성 */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 font-bold text-lg text-foreground">
-                <Activity className="w-5 h-5" /> 차트 구성 관리
+                {mounted && <Activity className="w-5 h-5" />} 차트 구성 관리
               </div>
               <p className="text-sm text-muted-foreground mb-2">
                 모니터링 화면에 표시될 차트를 추가하거나 수정합니다.
@@ -215,7 +222,7 @@ export default function HelpPage() {
             {/* 데이터 관리 */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 font-bold text-lg text-foreground">
-                <Database className="w-5 h-5" /> 데이터베이스 관리
+                {mounted && <Database className="w-5 h-5" />} 데이터베이스 관리
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
                 <li>

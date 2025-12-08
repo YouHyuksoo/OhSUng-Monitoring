@@ -62,7 +62,14 @@ interface TodayDataResponse {
   lastUpdate: number;
 }
 
-export function PowerUsageChart() {
+/**
+ * 전력 사용 현황 차트 Props
+ */
+interface PowerUsageChartProps {
+  isPollingActive?: boolean; // 폴링 활성화 상태 (주기적 갱신 여부)
+}
+
+export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProps) {
   const { theme } = useTheme();
   const { settings } = useSettings();
   const [hourlyData, setHourlyData] = useState<any[]>([]);
@@ -75,72 +82,102 @@ export function PowerUsageChart() {
   });
 
   /**
-   * 에너지 데이터 로드
+   * 에너지 데이터 조회 함수
    * - 요약 API: 당일/주간/월간 합계 + 일별 합계 (SQL SUM)
    * - 오늘 API: 시간별 데이터
    */
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
 
-        // 두 API 병렬 호출
-        const [summaryRes, todayRes] = await Promise.all([
-          fetch("/api/energy/hourly?summary=true"),
-          fetch("/api/energy/hourly"),
-        ]);
+      // 두 API 병렬 호출
+      const [summaryRes, todayRes] = await Promise.all([
+        fetch("/api/energy/hourly?summary=true"),
+        fetch("/api/energy/hourly"),
+      ]);
 
-        // 1. 요약 데이터 처리 (당일/주간/월간 + 일별 합계)
-        if (summaryRes.ok) {
-          const summaryData =
-            (await summaryRes.json()) as EnergySummaryResponse;
+      console.log(`[PowerUsageChart] 📍 API responses - summary: ${summaryRes.status}, today: ${todayRes.status}`);
 
-          // 총계 업데이트
-          setTotals({
-            today: summaryData.today,
-            weekly: summaryData.weekly,
-            monthly: summaryData.monthly,
-          });
+      // 1. 요약 데이터 처리 (당일/주간/월간 + 일별 합계)
+      if (summaryRes.ok) {
+        const summaryData =
+          (await summaryRes.json()) as EnergySummaryResponse;
 
-          // 일별 차트 데이터 변환
-          const dailyChartData = summaryData.dailyTotals.map((item) => {
-            const date = new Date(item.date);
-            return {
-              day: `${date.getMonth() + 1}/${date.getDate()}`,
-              value: item.total,
-            };
-          });
-          setDailyData(dailyChartData);
-        }
+        console.log(`[PowerUsageChart] 📊 Summary data:`, summaryData);
 
-        // 2. 오늘 시간별 데이터 처리
-        if (todayRes.ok) {
-          const todayData = (await todayRes.json()) as TodayDataResponse;
+        // 총계 업데이트
+        setTotals({
+          today: summaryData.today,
+          weekly: summaryData.weekly,
+          monthly: summaryData.monthly,
+        });
 
-          // 시간별 차트 데이터 변환 (0~23시)
-          const hourlyChartData = [];
-          for (let hour = 0; hour < 24; hour++) {
-            const value = todayData.hours?.[hour] || 0;
-            hourlyChartData.push({
-              hour: `${hour}시`,
-              value,
-            });
-          }
-          setHourlyData(hourlyChartData);
-        }
-      } catch (error) {
-        console.error("Failed to fetch energy data:", error);
-      } finally {
-        setIsLoading(false);
+        // 일별 차트 데이터 변환
+        const dailyChartData = summaryData.dailyTotals.map((item) => {
+          const date = new Date(item.date);
+          return {
+            day: `${date.getMonth() + 1}/${date.getDate()}`,
+            value: item.total,
+          };
+        });
+        setDailyData(dailyChartData);
+      } else {
+        console.error(`[PowerUsageChart] ❌ Summary API failed: ${summaryRes.status}`);
       }
-    };
 
+      // 2. 오늘 시간별 데이터 처리
+      if (todayRes.ok) {
+        const todayData = (await todayRes.json()) as TodayDataResponse;
+
+        console.log(`[PowerUsageChart] 📊 Today data:`, todayData);
+
+        // 시간별 차트 데이터 변환 (0~23시)
+        const hourlyChartData = [];
+        for (let hour = 0; hour < 24; hour++) {
+          const value = todayData.hours?.[hour] || 0;
+          hourlyChartData.push({
+            hour: `${hour}시`,
+            value,
+          });
+        }
+        setHourlyData(hourlyChartData);
+      } else {
+        console.error(`[PowerUsageChart] ❌ Today API failed: ${todayRes.status}`);
+      }
+    } catch (error) {
+      console.error("[PowerUsageChart] ❌ Failed to fetch energy data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * 초기 데이터 로드 (페이지 진입 시 1회)
+   */
+  useEffect(() => {
+    console.log(`[PowerUsageChart] ⚡ Loading energy data...`);
     fetchData();
+  }, []);
 
-    // 설정된 주기로 데이터 갱신
-    const interval = setInterval(fetchData, settings.monitoringRefreshInterval);
+  /**
+   * 주기적인 데이터 갱신 (폴링 활성화 시에만)
+   * - isPollingActive가 true일 때만 주기적으로 에너지 데이터 조회
+   * - monitoringRefreshInterval: 모니터링 화면에서 DB 데이터를 조회하는 주기 (기본값: 10초)
+   */
+  useEffect(() => {
+    // 폴링이 활성화되지 않았으면 주기적 갱신 없음
+    if (!isPollingActive) {
+      return;
+    }
+
+    const refreshInterval = settings?.monitoringRefreshInterval || 10000;
+
+    const interval = setInterval(() => {
+      fetchData();
+    }, refreshInterval);
+
     return () => clearInterval(interval);
-  }, [settings.monitoringRefreshInterval]);
+  }, [isPollingActive, settings?.monitoringRefreshInterval]);
 
   const isDark = theme === "dark";
   const gridColor = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";

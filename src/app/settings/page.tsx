@@ -701,7 +701,7 @@ export default function SettingsPage() {
                                 e.target.value
                               )
                             }
-                            placeholder="예: D4032"
+                            placeholder="예: 32"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                         </div>
@@ -719,7 +719,7 @@ export default function SettingsPage() {
                                 e.target.value
                               )
                             }
-                            placeholder="예: D6100"
+                            placeholder="예: 50"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                         </div>
@@ -782,7 +782,7 @@ export default function SettingsPage() {
                                 e.target.value
                               )
                             }
-                            placeholder="예: D400"
+                            placeholder="예: 50"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                         </div>
@@ -800,7 +800,7 @@ export default function SettingsPage() {
                                 e.target.value
                               )
                             }
-                            placeholder="예: D401"
+                            placeholder="예: 60"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                         </div>
@@ -865,7 +865,7 @@ export default function SettingsPage() {
                                 e.target.value
                               )
                             }
-                            placeholder="예: D430"
+                            placeholder="예: 53"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                         </div>
@@ -883,7 +883,7 @@ export default function SettingsPage() {
                                 e.target.value
                               )
                             }
-                            placeholder="예: D431"
+                            placeholder="예: 63"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                         </div>
@@ -906,11 +906,11 @@ export default function SettingsPage() {
               <ul className="list-disc list-inside text-blue-700 dark:text-blue-400 space-y-1">
                 <li>
                   <strong>순방향 유효전력량 주소</strong> (전력): 현재 전력
-                  사용량을 읽는 주소 (예: D4032)
+                  사용량을 읽는 주소 (예: 32)
                 </li>
                 <li>
                   <strong>누적 측정값 주소</strong> (전력): 일일 누적 전력량을
-                  폴링하는 주소 (예: D6100)
+                  폴링하는 주소 (예: 50)
                 </li>
                 <li>
                   <strong>현재값 주소</strong> (온도): PLC에서 현재 센서 값을
@@ -921,9 +921,9 @@ export default function SettingsPage() {
                   저장된 주소
                 </li>
                 <li>
-                  주소 형식:{" "}
-                  <code className="bg-blue-100 px-1 rounded">D400</code>,{" "}
-                  <code className="bg-blue-100 px-1 rounded">D401</code> 등
+                  주소 형식 (WORD 주소):{" "}
+                  <code className="bg-blue-100 px-1 rounded">50</code>,{" "}
+                  <code className="bg-blue-100 px-1 rounded">60</code> 등
                 </li>
                 <li>변경 후 반드시 &quot;설정 저장&quot; 버튼을 클릭하세요</li>
               </ul>

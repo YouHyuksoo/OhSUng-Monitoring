@@ -24,6 +24,7 @@ export default function MonitoringPage() {
   const router = useRouter();
   const { settings } = useSettings();
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [isPollingActive, setIsPollingActive] = useState(false);
   const [maximizedChartId, setMaximizedChartId] = useState<string | null>(null);
   const [maximizedConfig, setMaximizedConfig] = useState<any>(null);
@@ -45,6 +46,35 @@ export default function MonitoringPage() {
   };
 
   /**
+   * 클라이언트 마운트 확인
+   */
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  /**
+   * 폴링 상태 조회 (페이지 진입 시 한 번만)
+   */
+  useEffect(() => {
+    const checkPollingStatus = async () => {
+      try {
+        const res = await fetch("/api/polling/status");
+        if (res.ok) {
+          const data = await res.json();
+          setIsPollingActive(data.status === "running");
+        } else {
+          setIsPollingActive(false);
+        }
+      } catch (error) {
+        setIsPollingActive(false);
+      }
+    };
+
+    // 페이지 진입 시 딱 한 번만 폴링 상태 조회
+    checkPollingStatus();
+  }, []);
+
+  /**
    * 자동 전체 화면 처리
    */
   useEffect(() => {
@@ -63,34 +93,6 @@ export default function MonitoringPage() {
     }
   }, [settings.startFullScreen]);
 
-  /**
-   * 폴링 상태 확인
-   * - 5초마다 백엔드 폴링 서비스 상태 확인
-   * - 폴링 중이면 Live Data, 아니면 Offline 표시
-   */
-  useEffect(() => {
-    const checkPollingStatus = async () => {
-      try {
-        const res = await fetch("/api/polling/status");
-        if (res.ok) {
-          const data = await res.json();
-          setIsPollingActive(data.status === "running");
-        } else {
-          setIsPollingActive(false);
-        }
-      } catch (error) {
-        setIsPollingActive(false);
-      }
-    };
-
-    // 초기 상태 확인
-    checkPollingStatus();
-
-    // 5초마다 상태 확인
-    const interval = setInterval(checkPollingStatus, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   /**
    * 모니터링 페이지 나가기 핸들러
@@ -130,7 +132,7 @@ export default function MonitoringPage() {
             <div className="flex items-center gap-3">
               {/* 로고 아이콘 */}
               <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 shadow-md">
-                <Activity className="w-6 h-6 text-white" />
+                {mounted && <Activity className="w-6 h-6 text-white" />}
               </div>
               <h1 className="text-2xl font-bold text-foreground">
                 {settings.appTitle}
@@ -171,11 +173,13 @@ export default function MonitoringPage() {
                   theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"
                 }
               >
-                {theme === "dark" ? (
-                  <Sun className="h-4 w-4 text-yellow-500" />
-                ) : (
-                  <Moon className="h-4 w-4 text-slate-700" />
-                )}
+                {mounted ? (
+                  theme === "dark" ? (
+                    <Sun className="h-4 w-4 text-yellow-500" />
+                  ) : (
+                    <Moon className="h-4 w-4 text-slate-700" />
+                  )
+                ) : null}
               </button>
               {/* 나가기 버튼 */}
               <button
@@ -183,7 +187,7 @@ export default function MonitoringPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors bg-amber-500 hover:bg-amber-600 text-white px-3 h-9"
                 title="모니터링 나가기"
               >
-                <LogOut className="h-4 w-4" />
+                {mounted && <LogOut className="h-4 w-4" />}
                 <span className="text-xs">나가기</span>
               </button>
             </div>
@@ -217,6 +221,7 @@ export default function MonitoringPage() {
                     unit="Wh"
                     color="#ef4444"
                     dataHours={settings.powerDataHours}
+                    isPollingActive={isPollingActive}
                   />
                 )}
               </div>
@@ -228,7 +233,7 @@ export default function MonitoringPage() {
                 전력 사용 현황
               </h2>
               <div className="flex-1 min-h-0">
-                <PowerUsageChart />
+                <PowerUsageChart isPollingActive={isPollingActive} />
               </div>
             </div>
           </div>
@@ -262,6 +267,7 @@ export default function MonitoringPage() {
                     yMax={80}
                     dataLimit={settings.tempDataLimit}
                     onMaximize={() => handleChartMaximize(config.id, { ...config, type: "sujul" })}
+                    isPollingActive={isPollingActive}
                   />
                 </div>
               ))}
@@ -282,6 +288,7 @@ export default function MonitoringPage() {
                     yMax={80}
                     dataLimit={settings.tempDataLimit}
                     onMaximize={() => handleChartMaximize(config.id, { ...config, type: "yeolpung" })}
+                    isPollingActive={isPollingActive}
                   />
                 </div>
               ))}
@@ -345,6 +352,7 @@ export default function MonitoringPage() {
                 yMin={0}
                 yMax={80}
                 dataLimit={settings.tempDataLimit * 3}
+                isPollingActive={isPollingActive}
               />
             </div>
           </div>

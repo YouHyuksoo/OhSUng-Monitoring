@@ -7,31 +7,21 @@
  */
 
 import { NextResponse } from "next/server";
-import { getPollingState } from "@/lib/polling-state";
+import { realtimeDataService } from "@/lib/realtime-data-service";
+import { hourlyEnergyService } from "@/lib/hourly-energy-service";
 
 export async function GET() {
   try {
-    // ✅ 파일 기반 상태 조회 (프로세스간 공유)
-    const state = getPollingState();
-    const isRealtimePolling = state.realtimePolling;
-    const isHourlyPolling = state.hourlyPolling;
+    // 실제 서비스 인스턴스의 활성 상태를 직접 확인
+    const isRealtimePolling = realtimeDataService.isPollingActive();
+    const isHourlyPolling = hourlyEnergyService.isPollingActive();
 
     /**
-     * 진단 로그: 싱글톤 인스턴스 확인
-     * - 배포 환경에서 상태 불일치 문제 진단
+     * 진단 로그: 메모리 내 인스턴스 상태 직접 확인
      */
     console.log(
-      `[API/polling/status] Realtime: ${isRealtimePolling}, Hourly: ${isHourlyPolling}, Status: ${
-        isRealtimePolling || isHourlyPolling ? "running" : "stopped"
-      }`
+      `[API/polling/status] Status Check - Realtime: ${isRealtimePolling ? '✅ ACTIVE' : '❌ STOPPED'}, Hourly: ${isHourlyPolling ? '✅ ACTIVE' : '❌ STOPPED'}`
     );
-
-    // globalThis에 저장된 인스턴스 확인
-    if (process.env.NODE_ENV === "production") {
-      console.log(
-        `[API/polling/status] Realtime instance exists: ${globalThis.__realtimeDataServiceInstance !== undefined}, Hourly instance exists: ${globalThis.__hourlyEnergyServiceInstance !== undefined}`
-      );
-    }
 
     const realtimeStatus = {
       isPolling: isRealtimePolling,
@@ -49,6 +39,11 @@ export async function GET() {
         : "시간별 에너지 폴링이 중지되었습니다",
     };
 
+    /**
+     * 폴링 상태 반환
+     * - status: "running" = 최소 하나 이상의 폴링이 활성 상태
+     * - isValid: 연결이 실제로 작동하는지 여부 (추후 확장 가능)
+     */
     return NextResponse.json({
       status: isRealtimePolling || isHourlyPolling ? "running" : "stopped",
       services: {
@@ -56,6 +51,11 @@ export async function GET() {
         hourly: hourlyStatus,
       },
       timestamp: Date.now(),
+      // 디버깅: 실제 폴링 상태 표시
+      debug: {
+        realtimeActive: isRealtimePolling,
+        hourlyActive: isHourlyPolling,
+      },
     });
   } catch (error) {
     console.error("[API] Failed to get polling status:", error);

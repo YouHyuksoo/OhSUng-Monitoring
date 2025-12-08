@@ -62,8 +62,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // 실시간 데이터 폴링 시작
-    realtimeDataService.startPolling(
+    // 실시간 데이터 폴링 시작 (연결 테스트 후 시작)
+    await realtimeDataService.startPolling(
       addresses,
       ip,
       parseInt(port),

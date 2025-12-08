@@ -62,7 +62,7 @@ export function Header() {
             className="inline-flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white p-2 transition-colors"
             title="홈으로 이동"
           >
-            <BarChart3 className="h-6 w-6" />
+            {mounted && <BarChart3 className="h-6 w-6" />}
           </button>
 
           {/* 현재 페이지 타이틀 */}
@@ -130,13 +130,15 @@ export function Header() {
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-blue-400 hover:bg-blue-300 dark:bg-blue-600 dark:hover:bg-blue-500 text-white h-9 w-9"
-            title={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
+            title={mounted ? (theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환") : "테마 전환"}
           >
-            {mounted && theme === "dark" ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
+            {mounted ? (
+              theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )
+            ) : null}
           </button>
         </div>
       </div>

@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { X, CheckCircle, XCircle, Info } from "lucide-react";
 
 export type ToastType = "success" | "error" | "info";
@@ -27,6 +27,12 @@ export function Toast({
   onClose,
   duration = 5000,
 }: ToastProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (duration > 0) {
       const timer = setTimeout(onClose, duration);
@@ -35,9 +41,9 @@ export function Toast({
   }, [duration, onClose]);
 
   const icons = {
-    success: <CheckCircle className="w-6 h-6 text-green-500" />,
-    error: <XCircle className="w-6 h-6 text-red-500" />,
-    info: <Info className="w-6 h-6 text-blue-500" />,
+    success: mounted && <CheckCircle className="w-6 h-6 text-green-500" />,
+    error: mounted && <XCircle className="w-6 h-6 text-red-500" />,
+    info: mounted && <Info className="w-6 h-6 text-blue-500" />,
   };
 
   const backgrounds = {
@@ -73,7 +79,7 @@ export function Toast({
           onClick={onClose}
           className={`flex-shrink-0 ${textColors[type]} hover:opacity-70 transition-opacity`}
         >
-          <X className="w-4 h-4" />
+          {mounted && <X className="w-4 h-4" />}
         </button>
       </div>
     </div>

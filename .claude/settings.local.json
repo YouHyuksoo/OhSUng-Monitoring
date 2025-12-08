@@ -5,7 +5,10 @@
       "Bash(/dev/null)",
       "Bash(npm run build:*)",
       "Bash(git restore:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(timeout 120 npm run build:*)"
     ],
     "deny": [],
     "ask": []

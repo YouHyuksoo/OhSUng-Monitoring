@@ -105,8 +105,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // 폴링 시작
-    hourlyEnergyService.startHourlyPolling(
+    // 폴링 시작 (연결 테스트 후 시작)
+    await hourlyEnergyService.startHourlyPolling(
       ip,
       parseInt(port),
       plcType,

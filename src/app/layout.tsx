@@ -3,7 +3,6 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Header } from "@/components/Layout/Header";
 import { ThemeProvider } from "@/components/theme-provider";
-import { PLCConnectionProvider } from "@/lib/plc-connection-context";
 import { SettingsInitializer } from "@/components/settings-initializer";
 
 export const metadata: Metadata = {
@@ -28,11 +27,9 @@ export default function RootLayout({
         )}
       >
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-          <PLCConnectionProvider>
-            <SettingsInitializer />
-            <Header />
-            <main className="flex-1 w-full overflow-auto">{children}</main>
-          </PLCConnectionProvider>
+          <SettingsInitializer />
+          <Header />
+          <main className="flex-1 w-full overflow-auto">{children}</main>
         </ThemeProvider>
       </body>
     </html>

@@ -90,6 +90,11 @@ export class McPLC implements PLCConnector {
     if (this.isConnected) return;
 
     return new Promise((resolve, reject) => {
+      console.log("\n" + "=".repeat(70));
+      console.log("🔌 PLC 연결 시도 중...");
+      console.log(`   IP: ${this.ip}, 포트: ${this.port}`);
+      console.log("=".repeat(70));
+
       this.conn.initiateConnection(
         {
           port: this.port,
@@ -98,11 +103,15 @@ export class McPLC implements PLCConnector {
         },
         (err: any) => {
           if (err) {
-            console.error("MC Protocol Connection Error:", err);
+            console.error("\n❌ PLC 연결 실패!");
+            console.error(`   에러: ${err.message || JSON.stringify(err)}`);
+            console.error(`   코드: ${err.code}`);
+            console.log("=".repeat(70) + "\n");
             this.isConnected = false;
             reject(err);
           } else {
-            console.log(`Connected to PLC at ${this.ip}:${this.port}`);
+            console.log(`✅ PLC 연결 성공! (${this.ip}:${this.port})`);
+            console.log("=".repeat(70) + "\n");
             this.isConnected = true;
             resolve();
           }
@@ -168,12 +177,24 @@ export class McPLC implements PLCConnector {
           this.isReading = false;
 
           if (err) {
-            console.error("MC Protocol Read Error:", err);
+            console.error("❌ MC Protocol 읽기 에러:", err);
             // 에러 발생 시 0으로 채운 결과 반환
             const fallback: PLCData = {};
             addresses.forEach((addr) => (fallback[addr] = 0));
             resolve(fallback);
           } else {
+            // 📡 PLC 응답 데이터 콘솔 출력
+            console.log("\n" + "=".repeat(70));
+            console.log("✅ PLC 응답 수신!");
+            console.log("=".repeat(70));
+            console.log("📋 요청한 주소:");
+            addresses.forEach((addr, i) => {
+              console.log(`   ${i + 1}. ${addr}`);
+            });
+            console.log("\n📊 PLC 응답 데이터:");
+            console.log(JSON.stringify(values, null, 2));
+            console.log("\n📈 파싱된 결과:");
+
             // values는 { 'D430,1': value, 'D4000,1': value, ... } 형태
             // 배열로 반환되는 경우 첫 번째 값만 추출
             const result: PLCData = {};
@@ -181,7 +202,9 @@ export class McPLC implements PLCConnector {
               const val = values[addr];
               // 배열로 반환되면 첫 번째 값 사용
               result[addr] = Array.isArray(val) ? val[0] : val;
+              console.log(`   ${addr}: ${result[addr]}`);
             });
+            console.log("=".repeat(70) + "\n");
             resolve(result);
           }
         });
@@ -217,19 +240,30 @@ export class McPLC implements PLCConnector {
 
     return new Promise((resolve, reject) => {
       try {
+        console.log("\n" + "=".repeat(70));
+        console.log("✍️  PLC에 데이터 쓰기 시도");
+        console.log(`   주소: ${address}`);
+        console.log(`   값: ${value}`);
+        console.log("=".repeat(70));
+
         // mcprotocol writeItems 사용
         // writeItems(항목, 값, 콜백)
         this.conn.writeItems(address, [value], (err: any) => {
           if (err) {
-            console.error(`Failed to write ${address}:`, err);
+            console.error(`\n❌ 쓰기 실패 (${address}):`);
+            console.error(`   에러: ${err.message || JSON.stringify(err)}`);
+            console.log("=".repeat(70) + "\n");
             reject(err);
           } else {
-            console.log(`Wrote ${value} to ${address}`);
+            console.log(`✅ 쓰기 성공!`);
+            console.log(`   ${address} = ${value}`);
+            console.log("=".repeat(70) + "\n");
             resolve();
           }
         });
       } catch (e) {
-        console.error("Write error:", e);
+        console.error("❌ 쓰기 중 에러:", e);
+        console.log("=".repeat(70) + "\n");
         reject(e);
       }
     });

@@ -27,18 +27,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-/**
- * 폴링 상태 인터페이스
- */
-interface PollingStatus {
-  status: string;
-  services: {
-    realtime: { isPolling: boolean; lastUpdate: string; message: string };
-    hourly: { isPolling: boolean; lastUpdate: string; message: string };
-  };
-  timestamp: number;
-}
-
 export default function Home() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -51,9 +39,7 @@ export default function Home() {
   });
 
   /**
-   * 폴링 서비스 상태 조회
-   * - 실시간 데이터 폴링 상태
-   * - 시간별 에너지 폴링 상태
+   * 폴링 상태 조회 (페이지 진입 시 한 번만)
    */
   const fetchPollingStatus = async () => {
     try {
@@ -70,24 +56,13 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Failed to fetch polling status:", error);
-      setSystemStatus({
-        realtimeStatus: "offline",
-        hourlyStatus: "offline",
-        isPollingActive: false,
-      });
     }
   };
 
   useEffect(() => {
     setMounted(true);
-
-    // 초기 데이터 로드
+    // 페이지 진입 시 딱 한 번만 폴링 상태 조회
     fetchPollingStatus();
-
-    // 5초마다 폴링 상태 갱신
-    const pollingInterval = setInterval(fetchPollingStatus, 5000);
-
-    return () => clearInterval(pollingInterval);
   }, []);
 
   if (!mounted) {
@@ -138,7 +113,7 @@ export default function Home() {
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6 text-amber-500" />
+                  {mounted && <AlertTriangle className="w-6 h-6 text-amber-500" />}
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white">
@@ -174,7 +149,7 @@ export default function Home() {
                   onClick={executeUpgrade}
                   className="px-4 py-2 rounded-lg bg-cyan-600 text-white hover:bg-cyan-500 transition-colors font-medium flex items-center gap-2"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  {mounted && <RefreshCw className="w-4 h-4" />}
                   업그레이드 시작
                 </button>
               </div>
@@ -186,7 +161,7 @@ export default function Home() {
       {/* 업그레이드 로딩 오버레이 */}
       {isUpgrading && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm text-white">
-          <RefreshCw className="w-16 h-16 animate-spin text-cyan-400 mb-4" />
+          {mounted && <RefreshCw className="w-16 h-16 animate-spin text-cyan-400 mb-4" />}
           <h2 className="text-2xl font-bold mb-2">시스템 업그레이드 중...</h2>
           <p className="text-slate-400">
             잠시만 기다려주세요. 서버가 재시작됩니다.
@@ -201,9 +176,9 @@ export default function Home() {
           disabled={isUpgrading}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all text-sm backdrop-blur-md"
         >
-          <RefreshCw
+          {mounted && <RefreshCw
             className={`w-4 h-4 ${isUpgrading ? "animate-spin" : ""}`}
-          />
+          />}
           <span>Update</span>
         </button>
       </div>
@@ -246,10 +221,10 @@ export default function Home() {
           <div className="relative group h-32 lg:h-40 flex items-center justify-center">
             <div className="absolute inset-0 bg-cyan-400/30 rounded-full blur-2xl group-hover:blur-3xl transition-all duration-500" />
             <div className="w-32 h-32 lg:w-40 lg:h-40 glass-sphere rounded-full flex items-center justify-center animate-[float_4s_ease-in-out_infinite] relative z-10">
-              <Activity
+              {mounted && <Activity
                 className="w-16 h-16 lg:w-20 lg:h-20 text-cyan-300 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]"
                 strokeWidth={1.5}
-              />
+              />}
             </div>
           </div>
 
@@ -278,7 +253,7 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <div className="relative z-10">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-4 group-hover:bg-emerald-500/30 transition-colors">
-                  <Activity className="w-6 h-6 text-emerald-400" />
+                  {mounted && <Activity className="w-6 h-6 text-emerald-400" />}
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-1">모니터링</h3>
                 <p className="text-emerald-200/60 text-sm">
@@ -286,7 +261,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="relative z-10 self-end w-10 h-10 rounded-full border border-white/20 flex items-center justify-center group-hover:bg-emerald-500 group-hover:border-transparent transition-all duration-300">
-                <ArrowRight className="w-5 h-5 text-white/70 group-hover:text-white" />
+                {mounted && <ArrowRight className="w-5 h-5 text-white/70 group-hover:text-white" />}
               </div>
             </button>
 
@@ -298,13 +273,13 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <div className="relative z-10">
                 <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 flex items-center justify-center mb-4 group-hover:bg-cyan-500/30 transition-colors">
-                  <Settings className="w-6 h-6 text-cyan-400" />
+                  {mounted && <Settings className="w-6 h-6 text-cyan-400" />}
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-1">관리자</h3>
                 <p className="text-cyan-200/60 text-sm">시스템 설정 및 제어</p>
               </div>
               <div className="relative z-10 self-end w-10 h-10 rounded-full border border-white/20 flex items-center justify-center group-hover:bg-cyan-500 group-hover:border-transparent transition-all duration-300">
-                <ArrowRight className="w-5 h-5 text-white/70 group-hover:text-white" />
+                {mounted && <ArrowRight className="w-5 h-5 text-white/70 group-hover:text-white" />}
               </div>
             </button>
           </div>
@@ -338,7 +313,7 @@ export default function Home() {
             <div className="grid grid-cols-3 gap-4">
               {/* 실시간 데이터 폴링 */}
               <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
-                <Activity className="w-5 h-5 text-blue-400 mx-auto mb-2" />
+                {mounted && <Activity className="w-5 h-5 text-blue-400 mx-auto mb-2" />}
                 <div className="text-lg font-bold text-white">
                   {systemStatus.realtimeStatus === "online"
                     ? "Running"
@@ -349,7 +324,7 @@ export default function Home() {
 
               {/* 시간별 에너지 폴링 */}
               <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
-                <Zap className="w-5 h-5 text-yellow-400 mx-auto mb-2" />
+                {mounted && <Zap className="w-5 h-5 text-yellow-400 mx-auto mb-2" />}
                 <div className="text-lg font-bold text-white">
                   {systemStatus.hourlyStatus === "online"
                     ? "Running"
@@ -360,7 +335,7 @@ export default function Home() {
 
               {/* 전체 상태 */}
               <div className="text-center p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors">
-                <Database className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
+                {mounted && <Database className="w-5 h-5 text-emerald-400 mx-auto mb-2" />}
                 <div className="text-lg font-bold text-white">
                   {systemStatus.isPollingActive ? "Online" : "Offline"}
                 </div>

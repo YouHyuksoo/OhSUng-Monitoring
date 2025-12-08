@@ -124,136 +124,91 @@ export class XgtModbusPLC implements PLCConnector {
   }
 
   /**
-   * D 주소를 Modbus 레지스터 오프셋으로 변환
+   * 주소를 Modbus 레지스터 오프셋으로 변환
+   * D주소(D400) 또는 WORD주소(50)를 직접 parseInt로 처리
    *
-   * 변환 공식:
-   * Modbus 오프셋 = (D주소 값 - dAddressBase) + modbusOffset
-   *
-   * 예시:
-   * - dAddressBase=0, modbusOffset=0 → D400 = 400 (그대로)
-   * - dAddressBase=400, modbusOffset=0 → D400 = 0, D401 = 1
-   * - dAddressBase=0, modbusOffset=100 → D400 = 500 (모든 주소에 100 추가)
-   *
-   * @param address - "D400", "D410" 형식의 주소
-   * @returns - Modbus 레지스터 오프셋 (0-Based)
-   * @throws - 잘못된 주소 형식이면 에러 발생
+   * @param address - D400, D401, 50, 51 등의 주소
+   * @returns - parseInt 결과값 (숫자만 추출)
    */
   private addressToRegister(address: string): number {
-    const match = address.match(/^D(\d+)$/);
-    if (!match) {
-      throw new Error(`Invalid address format: ${address}`);
-    }
-
-    const dAddressValue = parseInt(match[1]);
-
-    // 설정된 매핑 규칙 적용
-    const modbusOffset =
-      dAddressValue -
-      this.addressMapping.dAddressBase +
-      this.addressMapping.modbusOffset;
-
-    // 디버그 모드일 때만 상세 매핑 로그 출력 (기본은 비활성화 - 반복 제거)
-    if (process.env.DEBUG_MODBUS_MAPPING === "true") {
-      console.log(
-        `Address mapping: D${dAddressValue} → Modbus offset ${modbusOffset} ` +
-          `(base=${this.addressMapping.dAddressBase}, offset=${this.addressMapping.modbusOffset})`
-      );
-    }
-
-    return modbusOffset;
+    return parseInt(address, 10);
   }
 
   /**
-   * PLC에서 여러 주소의 데이터 읽기
-   * - 병렬로 모든 주소 읽기 수행
+   * PLC에서 여러 주소의 데이터 읽기 (debug-modbus.js 방식)
+   * - 순차적으로 각 주소 읽기 수행 (debug-modbus.js와 동일)
    * - 연결되지 않았으면 자동 연결 시도
+   * - readInputRegisters (FC04) 사용
    * - 읽기 실패 시 해당 주소 값을 0으로 설정
    *
-   * @param addresses - 읽을 주소 배열 (예: ["D400", "D410"])
-   * @returns - 주소별 값의 객체 (예: {"D400": 25, "D410": 30})
+   * @param addresses - 읽을 주소 배열 (예: ["50", "51", "52"])
+   * @returns - 주소별 값의 객체 (예: {"50": 256, "51": 255, "52": 263})
    */
   async read(addresses: string[]): Promise<PLCData> {
     if (!this.isConnected) {
       try {
-        console.log(`[XgtModbusPLC] Connecting to ${this.ip}:${this.port}...`);
+        console.log(`[XgtModbusPLC] 연결 시도 중 ${this.ip}:${this.port}...`);
         await this.connect();
-        console.log(`[XgtModbusPLC] ✅ Connected successfully`);
+        console.log(`[XgtModbusPLC] ✅ 연결 성공`);
       } catch (e) {
         const errorMsg =
           e instanceof Error ? `${e.name}: ${e.message}` : String(e);
-        console.error(`[XgtModbusPLC] ❌ Connection failed - ${errorMsg}`);
-        // 연결 실패 시 모든 주소에 null 반환 (읽기 실패 명시)
+        console.error(`[XgtModbusPLC] ❌ 연결 실패 - ${errorMsg}`);
+        // 연결 실패 시 모든 주소에 0 반환
         const fallback: PLCData = {};
-        addresses.forEach((addr) => (fallback[addr] = null));
+        addresses.forEach((addr) => (fallback[addr] = 0));
         return fallback;
       }
     }
 
     const result: PLCData = {};
 
-    await Promise.all(
-      addresses.map(async (addr) => {
-        try {
-          const regAddr = this.addressToRegister(addr);
+    console.log(`[XgtModbusPLC] 📍 ${addresses.length}개 주소 읽기 시작:`, addresses);
+    console.log(`[XgtModbusPLC] 📊 읽기 명령:`);
 
-          // Modbus readHoldingRegisters (FC 3): 홀딩 레지스터 읽기
-          try {
-            // modbus-serial의 readHoldingRegisters는 { data: [val1, val2...], buffer: Buffer } 형태의 객체를 반환함
-            const res = await (this.client as any).readHoldingRegistersAsync(
-              regAddr,
-              1
-            );
+    // debug-modbus.js처럼 순차적으로 읽기 (콜백 방식)
+    for (const addr of addresses) {
+      try {
+        const regAddr = this.addressToRegister(addr);
+        console.log(`   📍 ${addr} (레지스터 ${regAddr}) 읽는 중...`);
 
-            // 응답 구조 확인 및 값 추출
-            if (res && Array.isArray(res.data) && res.data.length > 0) {
-              result[addr] = res.data[0];
-            } else if (Array.isArray(res)) {
-              // 혹시 모를 배열 반환 대응
-              result[addr] = res[0];
-            } else {
-              console.warn(
-                `[XgtModbusPLC] Unexpected response format for ${addr}:`,
-                JSON.stringify(res)
-              );
-              result[addr] = null; // 형식 오류 시 null
-            }
-          } catch (e) {
-            // 비동기 메서드가 없으면 콜백 기반으로 시도
-            const values = await new Promise<number[] | null>(
-              (resolve, reject) => {
-                (this.client as any).readHoldingRegisters(
-                  regAddr,
-                  1,
-                  (err: any, data: any) => {
-                    if (err) {
-                      reject(err);
-                    } else {
-                      // 콜백의 data도 동일한 구조일 수 있음
-                      if (data && Array.isArray(data.data)) {
-                        resolve(data.data);
-                      } else if (Array.isArray(data)) {
-                        resolve(data);
-                      } else {
-                        resolve([0]); // 여기는 데이터가 있는데 형식이 이상한 경우라 0으로 두거나 null로 변경 고려
-                      }
-                    }
-                  }
-                );
+        // debug-modbus.js와 동일: readInputRegisters (FC04) 사용
+        const data = await new Promise<any>((resolve, reject) => {
+          (this.client as any).readInputRegisters(
+            regAddr,
+            1,
+            (err: any, data: any) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(data);
               }
-            );
-            result[addr] = values ? values[0] : null;
-          }
-        } catch (e) {
-          const errorMsg =
-            e instanceof Error ? `${e.name}: ${e.message}` : String(e);
-          console.error(
-            `[XgtModbusPLC] ❌ Read failed for ${addr} - ${errorMsg}`
+            }
           );
-          result[addr] = null; // 읽기 실패 시 null (명시적 에러 상태)
-        }
-      })
-    );
+        });
 
+        // data.data[0] 형식으로 값 추출 (debug-modbus.js와 동일)
+        if (data && Array.isArray(data.data) && data.data.length > 0) {
+          const value = data.data[0];
+          result[addr] = value;
+          console.log(`      ✅ 값: ${value}`);
+        } else {
+          console.warn(
+            `[XgtModbusPLC] ⚠️  ${addr} 응답 형식 오류:`,
+            JSON.stringify(data)
+          );
+          result[addr] = 0;
+        }
+      } catch (e) {
+        const errorMsg =
+          e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+        console.error(`      ❌ 실패: ${errorMsg}`);
+        result[addr] = 0; // 읽기 실패 시 0으로 설정
+      }
+    }
+
+    console.log(`\n[XgtModbusPLC] ✅ 읽기 완료!`);
+    console.log(`[XgtModbusPLC] 📊 읽기 결과:`, result);
     return result;
   }
 
