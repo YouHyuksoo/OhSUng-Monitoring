@@ -35,3 +35,6 @@ node_modules
 nul
 dev-server.log
 
+# database
+data/energy.db
+
