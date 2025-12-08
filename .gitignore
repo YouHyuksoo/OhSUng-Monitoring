@@ -35,5 +35,3 @@ node_modules
 nul
 dev-server.log
 
-# local data files
-/data

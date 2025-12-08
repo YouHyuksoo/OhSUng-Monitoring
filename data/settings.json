@@ -1,0 +1,90 @@
+{
+  "appTitle": "전력/온도 모니터링",
+  "plcIp": "192.168.111.186",
+  "plcPort": 502,
+  "plcType": "modbus",
+  "modbusAddressMapping": {
+    "dAddressBase": 0,
+    "modbusOffset": 0
+  },
+  "pollingInterval": 2000,
+  "plcPollingInterval": 10000,
+  "monitoringRefreshInterval": 10000,
+  "dataRetention": 20,
+  "sujulTempMin": 100,
+  "sujulTempMax": 300,
+  "yeolpungTempMin": 100,
+  "yeolpungTempMax": 300,
+  "autoSave": true,
+  "logRetention": 7,
+  "startFullScreen": true,
+  "tempDataLimit": 6,
+  "powerDataHours": 6,
+  "tempChartYMin": 0,
+  "tempChartYMax": 300,
+  "chartConfigs": [
+    {
+      "id": "power-1",
+      "name": "순방향 유효전력량",
+      "type": "power",
+      "address": "32",
+      "accumulationAddress": "34"
+    },
+    {
+      "id": "sujul-1",
+      "name": "수절 1 (현재값)",
+      "type": "sujul",
+      "address": "50",
+      "setAddress": "60"
+    },
+    {
+      "id": "sujul-2",
+      "name": "수절 2 (현재값)",
+      "type": "sujul",
+      "address": "51",
+      "setAddress": "61"
+    },
+    {
+      "id": "sujul-3",
+      "name": "수절 3 (현재값)",
+      "type": "sujul",
+      "address": "52",
+      "setAddress": "62"
+    },
+    {
+      "id": "yeolpung-1",
+      "name": "열풍 1 (현재값)",
+      "type": "yeolpung",
+      "address": "53",
+      "setAddress": "63"
+    },
+    {
+      "id": "yeolpung-2",
+      "name": "열풍 2 (현재값)",
+      "type": "yeolpung",
+      "address": "54",
+      "setAddress": "64"
+    },
+    {
+      "id": "yeolpung-3",
+      "name": "열풍 3 (현재값)",
+      "type": "yeolpung",
+      "address": "55",
+      "setAddress": "65"
+    },
+    {
+      "id": "yeolpung-4",
+      "name": "열풍 4 (현재값)",
+      "type": "yeolpung",
+      "address": "56",
+      "setAddress": "66"
+    },
+    {
+      "id": "yeolpung-5",
+      "name": "열풍 5 (현재값)",
+      "type": "yeolpung",
+      "address": "57",
+      "setAddress": "67"
+    }
+  ]
+}
