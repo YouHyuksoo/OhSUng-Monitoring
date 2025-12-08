@@ -43,12 +43,15 @@ export interface Settings {
   yeolpungTempMin: number;
   yeolpungTempMax: number;
   autoSave: boolean;
-  logRetention: number;
+  logRetention: number; // 로그 보관 일수
   startFullScreen: boolean;
   chartConfigs: ChartConfig[];
   // 차트 데이터 표시 설정
   tempDataLimit: number; // 온도 차트 표시 개수 (기본값: 6)
   powerDataHours: number; // 실시간 전력량 표시 시간 범위 (기본값: 6시간)
+  // 온도 차트 Y축 범위 설정
+  tempChartYMin: number; // 온도 차트 Y축 최소값 (기본값: 0)
+  tempChartYMax: number; // 온도 차트 Y축 최대값 (기본값: 100)
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -69,10 +72,12 @@ const DEFAULT_SETTINGS: Settings = {
   yeolpungTempMin: 40,
   yeolpungTempMax: 60,
   autoSave: true,
-  logRetention: 30,
+  logRetention: 30, // 로그 보관 일수 (기본값: 30일)
   startFullScreen: true,
   tempDataLimit: 6, // 온도 차트 표시 개수
   powerDataHours: 6, // 실시간 전력량 표시 시간 (6시간)
+  tempChartYMin: 0, // 온도 차트 Y축 최소값
+  tempChartYMax: 100, // 온도 차트 Y축 최대값
   chartConfigs: [
     // ⚡ 전력 데이터 (WORD 주소 기준)
     // 규칙: PC 주소 - 6000 = WORD

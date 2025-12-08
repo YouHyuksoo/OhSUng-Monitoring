@@ -52,6 +52,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // 폴링 주기 값 검증 (밀리초 단위, 최소 500ms)
+    const pollingInterval = Math.max(500, parseInt(String(interval)) || 2000);
+    console.log(`[API/realtime/polling] 폴링 주기 설정:`, {
+      receivedInterval: interval,
+      usedInterval: pollingInterval,
+      ms: `${pollingInterval}ms`,
+      seconds: `${(pollingInterval / 1000).toFixed(1)}초`,
+    });
+
     // chartConfigs에서 모든 주소 추출
     const addresses = extractAllAddresses(chartConfigs || []);
 
@@ -62,12 +71,21 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log(`[API/realtime/polling] 폴링 시작:`, {
+      ip,
+      port,
+      plcType,
+      interval: `${pollingInterval}ms`,
+      addresses: addresses.length,
+      addressList: addresses,
+    });
+
     // 실시간 데이터 폴링 시작 (연결 테스트 후 시작)
     await realtimeDataService.startPolling(
       addresses,
       ip,
       parseInt(port),
-      interval,
+      pollingInterval, // 검증된 폴링 주기 사용
       plcType, // plcType 전달
       modbusAddressMapping // 매핑 정보 전달
     );
@@ -77,7 +95,7 @@ export async function POST(request: Request) {
       message: "Realtime data polling started",
       ip,
       port,
-      interval,
+      interval: pollingInterval,
       addressCount: addresses.length,
       addresses,
     });

@@ -263,8 +263,8 @@ export default function MonitoringPage() {
                     minThreshold={SUJUL_TEMP_MIN}
                     maxThreshold={SUJUL_TEMP_MAX}
                     bordered={true}
-                    yMin={0}
-                    yMax={80}
+                    yMin={settings.tempChartYMin}
+                    yMax={settings.tempChartYMax}
                     dataLimit={settings.tempDataLimit}
                     onMaximize={() => handleChartMaximize(config.id, { ...config, type: "sujul" })}
                     isPollingActive={isPollingActive}
@@ -284,8 +284,8 @@ export default function MonitoringPage() {
                     minThreshold={YEOLPUNG_TEMP_MIN}
                     maxThreshold={YEOLPUNG_TEMP_MAX}
                     bordered={true}
-                    yMin={0}
-                    yMax={80}
+                    yMin={settings.tempChartYMin}
+                    yMax={settings.tempChartYMax}
                     dataLimit={settings.tempDataLimit}
                     onMaximize={() => handleChartMaximize(config.id, { ...config, type: "yeolpung" })}
                     isPollingActive={isPollingActive}
@@ -349,8 +349,8 @@ export default function MonitoringPage() {
                     : SUJUL_TEMP_MAX
                 }
                 bordered={false}
-                yMin={0}
-                yMax={80}
+                yMin={settings.tempChartYMin}
+                yMax={settings.tempChartYMax}
                 dataLimit={settings.tempDataLimit * 3}
                 isPollingActive={isPollingActive}
               />
