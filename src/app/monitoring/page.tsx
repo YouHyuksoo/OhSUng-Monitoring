@@ -142,9 +142,15 @@ export default function MonitoringPage() {
               <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 shadow-md">
                 {mounted && <Activity className="w-6 h-6 text-white" />}
               </div>
-              <h1 className="text-2xl font-bold text-foreground">
-                {settings.appTitle}
-              </h1>
+              <div className="flex flex-col">
+                <h1 className="text-2xl font-bold text-foreground">
+                  {settings.appTitle}
+                </h1>
+                {/* 버전 표시 */}
+                <span className="text-xs text-muted-foreground font-medium">
+                  v 1.0
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
