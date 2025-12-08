@@ -54,21 +54,33 @@ export default function MonitoringPage() {
 
   /**
    * 폴링 상태 주기적 조회
-   * - 2초마다 폴링 상태 갱신 (실시간 상태 표시)
+   * - mounted 상태 확인 후 2초마다 폴링 상태 갱신 (실시간 상태 표시)
    * - 페이지 언마운트 시 인터벌 정리
+   * - 프로덕션 빌드에서도 안정적으로 작동하도록 개선
    */
   useEffect(() => {
+    // mounted가 false면 실행하지 않음 (SSR 방지)
+    if (!mounted) return;
+
+    let isActive = true;
+    let statusCheckInterval: NodeJS.Timeout | null = null;
+
     const checkPollingStatus = async () => {
+      // 컴포넌트가 언마운트되었으면 상태 업데이트하지 않음
+      if (!isActive) return;
+
       try {
         const res = await fetch("/api/polling/status");
-        if (res.ok) {
+        if (res.ok && isActive) {
           const data = await res.json();
           setIsPollingActive(data.status === "running");
-        } else {
+        } else if (isActive) {
           setIsPollingActive(false);
         }
       } catch (error) {
-        setIsPollingActive(false);
+        if (isActive) {
+          setIsPollingActive(false);
+        }
       }
     };
 
@@ -76,11 +88,18 @@ export default function MonitoringPage() {
     checkPollingStatus();
 
     // 2초마다 폴링 상태 갱신
-    const statusCheckInterval = setInterval(checkPollingStatus, 2000);
+    statusCheckInterval = setInterval(() => {
+      checkPollingStatus();
+    }, 2000);
 
-    // 정리: 페이지 언마운트 시 인터벌 제거
-    return () => clearInterval(statusCheckInterval);
-  }, []);
+    // 정리: 페이지 언마운트 시 인터벌 제거 및 상태 플래그 업데이트
+    return () => {
+      isActive = false;
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+      }
+    };
+  }, [mounted]);
 
   /**
    * 자동 전체 화면 처리
