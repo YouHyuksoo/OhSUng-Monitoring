@@ -1,19 +1,3 @@
-/**
- * @file src/app/api/data/delete/route.ts
- * @description
- * 데이터 삭제 API
- * - DELETE: 날짜 범위 및 주소 기준으로 DB에서 데이터 삭제
- * - ?from=YYYY-MM-DD : 시작 날짜
- * - ?to=YYYY-MM-DD : 종료 날짜
- * - ?address=주소 : 특정 주소 필터 (선택 사항)
- *
- * 초보자 가이드:
- * 1. **필수 파라미터**: from, to (YYYY-MM-DD 형식)
- * 2. **선택 파라미터**: address (특정 주소만 삭제)
- * 3. **응답**: { deletedCount: number, success: boolean }
- * 4. **주의**: 삭제 후 복구 불가능
- */
-
 import { NextResponse } from "next/server";
 import { realtimeDataService } from "@/lib/realtime-data-service";
 import { hourlyEnergyService } from "@/lib/hourly-energy-service";
@@ -37,7 +21,7 @@ export async function DELETE(request: Request) {
     }
 
     console.log(
-      `[API] Data delete request (v2) - from: ${from}, to: ${to}, address: ${address}, type: ${type}`
+      `[API] Data delete-v2 request - from: ${from}, to: ${to}, address: ${address}, type: ${type}`
     );
 
     // 날짜 유효성 검증

@@ -22,7 +22,13 @@
       "Bash(npm install:*)",
       "Bash(pkill:*)",
       "Bash(lsof:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(sqlite3:*)",
+      "Bash(node /tmp/test.js:*)",
+      "Bash(node:*)",
+      "Bash(sleep 3 curl -s \"http://localhost:3002/api/data/query?from=2025-11-24&to=2025-11-25&type=hourly\")",
+      "Bash(find:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

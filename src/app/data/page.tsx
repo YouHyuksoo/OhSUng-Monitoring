@@ -18,9 +18,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Download, Search, Trash2 } from "lucide-react";
+import {
+  Download,
+  Search,
+  Trash2,
+  Database,
+  Filter,
+  ArrowDownToLine,
+  Trash,
+} from "lucide-react";
 import * as XLSX from "xlsx";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 /**
  * 실시간/시간별 데이터 포인트
@@ -76,9 +93,13 @@ export default function DataPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [address, setAddress] = useState("");
-  const [dataType, setDataType] = useState<"realtime" | "hourly" | "daily">("realtime");
+  const [dataType, setDataType] = useState<"realtime" | "hourly" | "daily">(
+    "realtime"
+  );
   const [data, setData] = useState<DataPoint[] | DailyDataPoint[]>([]);
-  const [responseType, setResponseType] = useState<"realtime" | "hourly" | "daily">("realtime");
+  const [responseType, setResponseType] = useState<
+    "realtime" | "hourly" | "daily"
+  >("realtime");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -104,7 +125,10 @@ export default function DataPage() {
     yesterday.setDate(yesterday.getDate() - 7);
 
     const formatDate = (date: Date) =>
-      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+        2,
+        "0"
+      )}-${String(date.getDate()).padStart(2, "0")}`;
 
     setStartDate(formatDate(yesterday));
     setEndDate(formatDate(today));
@@ -182,7 +206,7 @@ export default function DataPage() {
       if (responseType === "daily") {
         // daily_energy: 날짜 + h0-h23 + last_update
         excelData = (data as DailyDataPoint[]).map((row) => ({
-          "날짜": row.date,
+          날짜: row.date,
           "00시": row.h0,
           "01시": row.h1,
           "02시": row.h2,
@@ -214,17 +238,12 @@ export default function DataPage() {
       } else {
         // realtime/hourly: 타임스탐프 + 주소 + 주소명 + 값
         excelData = (data as DataPoint[]).map((point) => ({
-          "타임스탐프": new Date(point.timestamp).toLocaleString("ko-KR"),
-          "주소": point.address,
-          "주소명": point.name || "-",
-          "값": point.value,
+          타임스탐프: new Date(point.timestamp).toLocaleString("ko-KR"),
+          주소: point.address,
+          주소명: point.name || "-",
+          값: point.value,
         }));
-        colWidths = [
-          { wch: 20 },
-          { wch: 15 },
-          { wch: 25 },
-          { wch: 15 },
-        ];
+        colWidths = [{ wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 15 }];
         sheetName = responseType === "hourly" ? "시간별에너지" : "실시간센서";
       }
 
@@ -270,7 +289,7 @@ export default function DataPage() {
     setSuccess("");
 
     try {
-      let url = `/api/data/delete?from=${startDate}&to=${endDate}`;
+      let url = `/api/data/delete-v2?from=${startDate}&to=${endDate}&type=${dataType}`;
       if (address && dataType !== "daily") {
         url += `&address=${address}`;
       }
@@ -289,7 +308,8 @@ export default function DataPage() {
       setData([]);
       setError("");
 
-      const successMsg = `${result.deletedCount}개의 데이터를 삭제했습니다.`;
+      const successMsg =
+        result.message || `${result.deletedCount}개의 데이터를 삭제했습니다.`;
       console.log(successMsg);
       setSuccess(successMsg);
 
@@ -308,80 +328,79 @@ export default function DataPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* 페이지 제목 */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">
-            데이터 관리
-          </h1>
-          <p className="text-muted-foreground">
-            DB에 저장된 폴링 데이터를 조회하고 엑셀로 다운로드합니다.
+    <div className="min-h-screen bg-muted/40 p-4 md:p-8 space-y-6">
+      {/* 헤더 */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">데이터 관리</h1>
+          <p className="text-muted-foreground mt-1">
+            저장된 모니터링 데이터를 조회하고 관리합니다.
           </p>
         </div>
+      </div>
 
-        {/* 검색 영역 */}
-        <div className="bg-card border border-border rounded-lg p-5 mb-6 shadow-sm">
-          <div className="flex flex-wrap items-end gap-3">
-            {/* 시작 날짜 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground">
-                시작
-              </label>
+      {/* 검색 필터 카드 */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Filter className="w-5 h-5 text-primary" />
+            <CardTitle className="text-lg">검색 필터</CardTitle>
+          </div>
+          <CardDescription>
+            원하는 조건을 설정하여 데이터를 조회하세요.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">시작 날짜</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
 
-            {/* 종료 날짜 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground">
-                종료
-              </label>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">종료 날짜</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
 
-            {/* 데이터 타입 선택 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground">
-                타입
-              </label>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">데이터 타입</label>
               <select
                 value={dataType}
                 onChange={(e) => {
-                  setDataType(e.target.value as "realtime" | "hourly" | "daily");
+                  setDataType(
+                    e.target.value as "realtime" | "hourly" | "daily"
+                  );
                   if (e.target.value === "daily") {
                     setAddress("");
                   }
                 }}
-                className="px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="realtime">실시간</option>
-                <option value="hourly">시간별</option>
-                <option value="daily">일일</option>
+                <option value="realtime">실시간 센서</option>
+                <option value="hourly">시간별 에너지</option>
+                <option value="daily">일일 누적 에너지</option>
               </select>
             </div>
 
-            {/* 주소 선택 (daily 제외) */}
             {dataType !== "daily" && (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-muted-foreground">
-                  주소
-                </label>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">주소 (선택)</label>
                 <select
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="">전체</option>
+                  <option value="">전체 주소</option>
                   {availableAddresses.map((addr) => (
                     <option key={addr} value={addr}>
                       {addr}
@@ -391,179 +410,229 @@ export default function DataPage() {
               </div>
             )}
 
-            {/* 조회 버튼 */}
             <button
               onClick={handleQuery}
               disabled={loading}
-              className="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              className={cn(
+                "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+                "h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
             >
               {loading ? (
-                <span>조회 중...</span>
+                "조회 중..."
               ) : (
                 <>
-                  <Search className="w-4 h-4" />
-                  조회
+                  <Search className="mr-2 h-4 w-4" />
+                  데이터 조회
                 </>
               )}
             </button>
           </div>
 
-          {/* 에러 메시지 */}
-          {error && (
-            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/50 text-red-700 dark:text-red-400 rounded-md text-sm">
-              {error}
-            </div>
-          )}
+          {/* 알림 메시지 */}
+          <div className="mt-4 space-y-2">
+            {error && (
+              <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md border border-destructive/20">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="p-3 text-sm text-green-700 bg-green-100 rounded-md border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50">
+                {success}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-          {/* 성공 메시지 */}
-          {success && (
-            <div className="mt-4 p-3 bg-green-500/10 border border-green-500/50 text-green-700 dark:text-green-400 rounded-md text-sm">
-              {success}
+      {/* 데이터 결과 카드 */}
+      <Card className="overflow-hidden">
+        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b bg-muted/40">
+          <div className="flex items-center gap-2">
+            <Database className="w-5 h-5 text-muted-foreground" />
+            <div>
+              <CardTitle className="text-lg">조회 결과</CardTitle>
+              <CardDescription className="mt-1">
+                {data.length > 0
+                  ? `총 ${data.length.toLocaleString()}개의 데이터가 조회되었습니다.`
+                  : "데이터를 조회해주세요."}
+              </CardDescription>
             </div>
-          )}
+          </div>
 
-          {/* 결과 통계 및 버튼 */}
           {data.length > 0 && (
-            <div className="mt-4 flex items-center justify-between gap-4">
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">
-                  {data.length}
-                </span>
-                개
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleDownloadExcel}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium transition-colors text-sm"
-                >
-                  <Download className="w-4 h-4" />
-                  다운로드
-                </button>
-                <button
-                  onClick={handleOpenDeleteDialog}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors text-sm"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  삭제
-                </button>
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownloadExcel}
+                className={cn(
+                  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+                  "h-9 px-4 py-2 bg-green-600 text-white hover:bg-green-700"
+                )}
+              >
+                <ArrowDownToLine className="mr-2 h-4 w-4" />
+                엑셀 다운로드
+              </button>
+              <button
+                onClick={handleOpenDeleteDialog}
+                className={cn(
+                  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+                  "h-9 px-4 py-2 border border-input bg-background text-destructive hover:bg-destructive/10 hover:text-destructive"
+                )}
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                데이터 삭제
+              </button>
             </div>
           )}
-        </div>
+        </CardHeader>
 
-        {/* realtime/hourly 데이터 테이블 */}
-        {responseType !== "daily" && data.length > 0 && (
-          <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden mt-6">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-100 dark:bg-slate-900 border-b border-border">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-semibold text-foreground">시간</th>
-                    <th className="px-4 py-2 text-left font-semibold text-foreground">주소</th>
-                    <th className="px-4 py-2 text-left font-semibold text-foreground">설명</th>
-                    <th className="px-4 py-2 text-right font-semibold text-foreground">값</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {(data as DataPoint[]).slice(0, 100).map((point, index) => (
-                    <tr
-                      key={index}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
-                    >
-                      <td className="px-4 py-2 text-muted-foreground">
-                        {new Date(point.timestamp).toLocaleTimeString("ko-KR")}
-                      </td>
-                      <td className="px-4 py-2 font-medium text-foreground">
-                        {point.address}
-                      </td>
-                      <td className="px-4 py-2 text-foreground">
-                        {point.name ? (
-                          <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs font-medium">
-                            {point.name}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2 text-right text-foreground font-semibold">
-                        {typeof point.value === "number" ? point.value.toFixed(2) : "-"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* 페이지네이션 정보 */}
-            {data.length > 100 && (
-              <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-t border-border text-xs text-muted-foreground">
-                처음 100개만 표시 (전체는 다운로드)
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* daily 데이터 테이블 */}
-        {responseType === "daily" && data.length > 0 && (
-          <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden mt-6">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-100 dark:bg-slate-900 border-b border-border sticky top-0">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-semibold text-foreground min-w-20">날짜</th>
-                    {Array.from({ length: 24 }, (_, i) => (
-                      <th key={i} className="px-1.5 py-2 text-center font-semibold text-foreground text-xs min-w-12">
-                        {String(i).padStart(2, "0")}
+        <CardContent className="p-0">
+          {data.length > 0 ? (
+            <div className="relative w-full overflow-auto max-h-[600px]">
+              <table className="w-full caption-bottom text-sm text-left">
+                {responseType === "daily" ? (
+                  <thead className="sticky top-0 bg-secondary text-secondary-foreground z-10">
+                    <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                      <th className="h-12 px-4 align-middle font-medium text-muted-foreground min-w-[100px]">
+                        날짜
                       </th>
-                    ))}
-                    <th className="px-3 py-2 text-left font-semibold text-foreground min-w-28">업데이트</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {(data as DailyDataPoint[]).slice(0, 50).map((row, index) => (
-                    <tr
-                      key={index}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
-                    >
-                      <td className="px-3 py-1.5 font-medium text-foreground">
-                        {row.date}
-                      </td>
-                      {[
-                        row.h0, row.h1, row.h2, row.h3, row.h4, row.h5, row.h6, row.h7,
-                        row.h8, row.h9, row.h10, row.h11, row.h12, row.h13, row.h14, row.h15,
-                        row.h16, row.h17, row.h18, row.h19, row.h20, row.h21, row.h22, row.h23,
-                      ].map((value, hIndex) => (
-                        <td key={hIndex} className="px-1.5 py-1.5 text-center text-foreground">
-                          {value || "-"}
-                        </td>
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <th
+                          key={i}
+                          className="h-12 px-2 align-middle font-center text-muted-foreground min-w-[50px] text-center"
+                        >
+                          {String(i).padStart(2, "0")}h
+                        </th>
                       ))}
-                      <td className="px-3 py-1.5 text-xs text-muted-foreground">
-                        {new Date(row.last_update).toLocaleTimeString("ko-KR")}
-                      </td>
+                      <th className="h-12 px-4 align-middle font-medium text-muted-foreground min-w-[150px]">
+                        업데이트
+                      </th>
                     </tr>
-                  ))}
+                  </thead>
+                ) : (
+                  <thead className="sticky top-0 bg-secondary text-secondary-foreground z-10">
+                    <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                      <th className="h-12 px-4 align-middle font-medium text-muted-foreground w-[200px]">
+                        시간
+                      </th>
+                      <th className="h-12 px-4 align-middle font-medium text-muted-foreground w-[150px]">
+                        주소
+                      </th>
+                      <th className="h-12 px-4 align-middle font-medium text-muted-foreground">
+                        설명
+                      </th>
+                      <th className="h-12 px-4 align-middle font-medium text-muted-foreground text-right w-[150px]">
+                        값
+                      </th>
+                    </tr>
+                  </thead>
+                )}
+
+                <tbody className="[&_tr:last-child]:border-0">
+                  {responseType === "daily"
+                    ? (data as DailyDataPoint[])
+                        .slice(0, 100)
+                        .map((row, index) => (
+                          <tr
+                            key={index}
+                            className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                          >
+                            <td className="p-4 align-middle font-medium">
+                              {row.date}
+                            </td>
+                            {[
+                              row.h0,
+                              row.h1,
+                              row.h2,
+                              row.h3,
+                              row.h4,
+                              row.h5,
+                              row.h6,
+                              row.h7,
+                              row.h8,
+                              row.h9,
+                              row.h10,
+                              row.h11,
+                              row.h12,
+                              row.h13,
+                              row.h14,
+                              row.h15,
+                              row.h16,
+                              row.h17,
+                              row.h18,
+                              row.h19,
+                              row.h20,
+                              row.h21,
+                              row.h22,
+                              row.h23,
+                            ].map((value, hIndex) => (
+                              <td
+                                key={hIndex}
+                                className="p-2 align-middle text-center text-xs"
+                              >
+                                {value !== null && value !== undefined
+                                  ? value
+                                  : "-"}
+                              </td>
+                            ))}
+                            <td className="p-4 align-middle text-muted-foreground">
+                              {new Date(row.last_update).toLocaleTimeString(
+                                "ko-KR"
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                    : (data as DataPoint[])
+                        .slice(0, 100)
+                        .map((point, index) => (
+                          <tr
+                            key={index}
+                            className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                          >
+                            <td className="p-4 align-middle font-medium text-muted-foreground">
+                              {new Date(point.timestamp).toLocaleString(
+                                "ko-KR"
+                              )}
+                            </td>
+                            <td className="p-4 align-middle font-semibold">
+                              {point.address}
+                            </td>
+                            <td className="p-4 align-middle">
+                              {point.name ? (
+                                <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                                  {point.name}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </td>
+                            <td className="p-4 align-middle text-right font-mono font-medium">
+                              {typeof point.value === "number"
+                                ? point.value.toFixed(2)
+                                : "-"}
+                            </td>
+                          </tr>
+                        ))}
                 </tbody>
               </table>
             </div>
-
-            {/* 페이지네이션 정보 */}
-            {data.length > 50 && (
-              <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-t border-border text-xs text-muted-foreground">
-                처음 50개만 표시 (전체는 다운로드)
-              </div>
-            )}
-          </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
+              <Database className="w-12 h-12 mb-4 opacity-20" />
+              <p className="text-lg font-medium">데이터가 없습니다</p>
+              <p className="text-sm">
+                상단 필터에서 조건을 변경하여 조회해보세요.
+              </p>
+            </div>
+          )}
+        </CardContent>
+        {data.length > 100 && (
+          <CardFooter className="bg-muted/40 p-4 border-t flex justify-center text-sm text-muted-foreground">
+            성능을 위해 최신 100개 데이터만 표시됩니다. 전체 데이터는 엑셀
+            다운로드를 이용해주세요.
+          </CardFooter>
         )}
-
-        {/* 빈 상태 */}
-        {mounted && data.length === 0 && !loading && !error && (
-          <div className="bg-card border border-border rounded-lg p-8 text-center mt-6">
-            <p className="text-sm text-muted-foreground">
-              조회된 데이터가 없습니다. 위의 조건을 입력하고 조회 버튼을 클릭하세요.
-            </p>
-          </div>
-        )}
-      </div>
+      </Card>
 
       {/* 삭제 확인 다이얼로그 */}
       <DeleteConfirmDialog

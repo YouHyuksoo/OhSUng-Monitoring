@@ -155,13 +155,15 @@ class HourlyEnergyService {
 
     // 🔴 핵심: 한 번만 연결 체크 (demo 모드 제외)
     if (plcType !== "demo") {
-      console.log(`[HourlyEnergyService] Testing connection to ${ip}:${port}...`);
+      console.log(
+        `[HourlyEnergyService] Testing connection to ${ip}:${port}...`
+      );
       try {
         // 전력 누적 데이터 주소: WORD 100 (D6100 → 100)
         const testData = await this.connection.read(["100"]);
 
         // null 값이 포함되어 있으면 연결 실패로 판단
-        const hasNull = Object.values(testData).some(val => val === null);
+        const hasNull = Object.values(testData).some((val) => val === null);
         if (hasNull) {
           throw new Error("PLC에서 응답이 없습니다");
         }
@@ -170,8 +172,7 @@ class HourlyEnergyService {
           `[HourlyEnergyService] ✅ Connection successful, starting polling loop`
         );
       } catch (error) {
-        const errorMsg =
-          error instanceof Error ? error.message : String(error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
         console.error(
           `[HourlyEnergyService] ❌ Connection test failed: ${errorMsg}`
         );
@@ -248,13 +249,7 @@ class HourlyEnergyService {
           h0=?, h1=?, h2=?, h3=?, h4=?, h5=?, h6=?, h7=?, h8=?, h9=?, h10=?, h11=?, h12=?, h13=?, h14=?, h15=?, h16=?, h17=?, h18=?, h19=?, h20=?, h21=?, h22=?, h23=?, last_update=?
       `);
 
-      stmt.run(
-        date,
-        ...hours,
-        timestamp,
-        ...hours,
-        timestamp
-      );
+      stmt.run(date, ...hours, timestamp, ...hours, timestamp);
 
       console.log(`[HourlyEnergyService] Test data inserted for ${date}`);
 
@@ -362,7 +357,10 @@ class HourlyEnergyService {
    * 날짜 문자열 포맷 헬퍼
    */
   private formatDateString(date: Date): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(date.getDate()).padStart(2, "0")}`;
   }
 
   /**
@@ -403,7 +401,10 @@ class HourlyEnergyService {
         ORDER BY date ASC
       `);
 
-      const dailyRows = dailyStmt.all(monthAgoStr, today) as Array<{ date: string; total: number }>;
+      const dailyRows = dailyStmt.all(monthAgoStr, today) as Array<{
+        date: string;
+        total: number;
+      }>;
 
       // DB 결과를 Map으로 변환 (빠른 조회용)
       const dataMap = new Map<string, number>();
@@ -446,7 +447,10 @@ class HourlyEnergyService {
         dailyTotals,
       };
     } catch (error) {
-      console.error("[HourlyEnergyService] Failed to get energy summary:", error);
+      console.error(
+        "[HourlyEnergyService] Failed to get energy summary:",
+        error
+      );
       return { today: 0, weekly: 0, monthly: 0, dailyTotals: [] };
     }
   }
@@ -530,6 +534,104 @@ class HourlyEnergyService {
     }
   }
 
+  /**
+   * 일일 누적 에너지 데이터 삭제 (날짜 범위)
+   * - Query API와 동일하게 last_update 타임스탬프 기준으로 삭제
+   */
+  deleteDailyData(from: string, to: string): number {
+    if (!this.db) {
+      this.initializeDatabase();
+    }
+
+    try {
+      // 날짜를 타임스탬프로 변환 (Query API와 동일한 방식)
+      const fromDate = new Date(from);
+      fromDate.setHours(0, 0, 0, 0);
+      const fromTime = fromDate.getTime();
+
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      const toTime = toDate.getTime();
+
+      // 삭제 전 데이터 확인 (디버깅)
+      const checkStmt = this.db!.prepare(`
+        SELECT count(*) as count FROM daily_energy
+        WHERE last_update >= ? AND last_update <= ?
+      `);
+      const checkResult = checkStmt.get(fromTime, toTime) as { count: number };
+      console.log(
+        `[HourlyEnergyService] Found ${checkResult.count} records to delete between ${from} (${fromTime}) and ${to} (${toTime})`
+      );
+
+      // last_update 타임스탬프 범위로 삭제
+      const stmt = this.db!.prepare(`
+        DELETE FROM daily_energy
+        WHERE last_update >= ? AND last_update <= ?
+      `);
+
+      const result = stmt.run(fromTime, toTime);
+      console.log(
+        `[HourlyEnergyService] Deleted ${result.changes} daily energy records from ${from} to ${to}`
+      );
+      return result.changes;
+    } catch (error) {
+      console.error(
+        "[HourlyEnergyService] Failed to delete daily data:",
+        error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * 시간별 에너지 데이터 삭제 (날짜 범위, legacy table)
+   */
+  deleteHourlyData(from: string, to: string): number {
+    if (!this.db) {
+      this.initializeDatabase();
+    }
+
+    try {
+      // 날짜를 타임스탬프로 변환
+      const fromDate = new Date(from);
+      fromDate.setHours(0, 0, 0, 0);
+      const fromTime = fromDate.getTime();
+
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      const toTime = toDate.getTime();
+
+      // hourly_energy 테이블이 존재하는지 확인
+      const tableExists = this.db!.prepare(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name=?`
+      ).get("hourly_energy");
+
+      if (!tableExists) {
+        console.warn(
+          "[HourlyEnergyService] hourly_energy table does not exist, skipping delete"
+        );
+        return 0;
+      }
+
+      const stmt = this.db!.prepare(`
+        DELETE FROM hourly_energy
+        WHERE timestamp >= ? AND timestamp <= ?
+      `);
+
+      const result = stmt.run(fromTime, toTime);
+      console.log(
+        `[HourlyEnergyService] Deleted ${result.changes} hourly energy records from ${from} to ${to}`
+      );
+      return result.changes;
+    } catch (error) {
+      console.error(
+        "[HourlyEnergyService] Failed to delete hourly data:",
+        error
+      );
+      return 0;
+    }
+  }
+
   private pollD6100 = async () => {
     if (!this.connection) {
       console.warn("[HourlyEnergyService] No connection available for polling");
@@ -582,7 +684,9 @@ class HourlyEnergyService {
         }
       } else {
         console.warn(
-          `[HourlyEnergyService] ⚠️  Invalid value for WORD 100: ${JSON.stringify(value)} (${elapsed}ms)`
+          `[HourlyEnergyService] ⚠️  Invalid value for WORD 100: ${JSON.stringify(
+            value
+          )} (${elapsed}ms)`
         );
         this.scheduleNextPoll();
       }
@@ -628,7 +732,7 @@ class HourlyEnergyService {
  * - globalThis 사용으로 Next.js 모듈 캐싱 문제 해결
  */
 declare global {
-  var __hourlyEnergyServiceInstance: HourlyEnergyService | undefined;
+  var __hourlyEnergyServiceInstance_v2: HourlyEnergyService | undefined;
 }
 
 /**
@@ -637,10 +741,10 @@ declare global {
  * - 이후 호출: 기존 인스턴스 반환
  */
 function getHourlyEnergyServiceInstance(): HourlyEnergyService {
-  if (!globalThis.__hourlyEnergyServiceInstance) {
-    globalThis.__hourlyEnergyServiceInstance = new HourlyEnergyService();
+  if (!globalThis.__hourlyEnergyServiceInstance_v2) {
+    globalThis.__hourlyEnergyServiceInstance_v2 = new HourlyEnergyService();
   }
-  return globalThis.__hourlyEnergyServiceInstance;
+  return globalThis.__hourlyEnergyServiceInstance_v2;
 }
 
 export const hourlyEnergyService = getHourlyEnergyServiceInstance();
