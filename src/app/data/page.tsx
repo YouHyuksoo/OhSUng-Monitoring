@@ -18,7 +18,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Download, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Download, Search, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 
@@ -303,18 +303,6 @@ export default function DataPage() {
     }
   };
 
-  /**
-   * 초기화
-   */
-  const handleReset = () => {
-    setData([]);
-    setError("");
-    setSuccess("");
-    setAddress("");
-    setDeleteDialogOpen(false);
-    initializeDateRange();
-  };
-
   if (!mounted) {
     return <div>로딩 중...</div>;
   }
@@ -334,9 +322,9 @@ export default function DataPage() {
 
         {/* 검색 영역 */}
         <div className="bg-card border border-border rounded-lg p-6 mb-6 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="flex flex-wrap items-end gap-4 mb-6">
             {/* 시작 날짜 */}
-            <div>
+            <div className="flex-shrink-0">
               <label className="block text-sm font-medium text-foreground mb-2">
                 시작 날짜
               </label>
@@ -344,12 +332,12 @@ export default function DataPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             {/* 종료 날짜 */}
-            <div>
+            <div className="flex-shrink-0">
               <label className="block text-sm font-medium text-foreground mb-2">
                 종료 날짜
               </label>
@@ -357,12 +345,12 @@ export default function DataPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             {/* 데이터 타입 선택 */}
-            <div>
+            <div className="flex-shrink-0">
               <label className="block text-sm font-medium text-foreground mb-2">
                 데이터 타입
               </label>
@@ -374,7 +362,7 @@ export default function DataPage() {
                     setAddress("");
                   }
                 }}
-                className="w-full px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="realtime">실시간 센서 데이터 (realtime_data)</option>
                 <option value="hourly">시간별 에너지 (hourly_energy)</option>
@@ -384,14 +372,14 @@ export default function DataPage() {
 
             {/* 주소 선택 (daily 제외) */}
             {dataType !== "daily" && (
-              <div>
+              <div className="flex-shrink-0">
                 <label className="block text-sm font-medium text-foreground mb-2">
                   주소 (선택사항)
                 </label>
                 <select
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">전체 주소</option>
                   {availableAddresses.map((addr) => (
@@ -403,29 +391,21 @@ export default function DataPage() {
               </div>
             )}
 
-            {/* 버튼 영역 */}
-            <div className="flex items-end gap-2">
-              <button
-                onClick={handleQuery}
-                disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <span>조회 중...</span>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4" />
-                    조회
-                  </>
-                )}
-              </button>
-              <button
-                onClick={handleReset}
-                className="px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-md font-medium transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-            </div>
+            {/* 버튼 영역 - 조회 버튼만 */}
+            <button
+              onClick={handleQuery}
+              disabled={loading}
+              className="flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            >
+              {loading ? (
+                <span>조회 중...</span>
+              ) : (
+                <>
+                  <Search className="w-4 h-4" />
+                  조회
+                </>
+              )}
+            </button>
           </div>
 
           {/* 에러 메시지 */}
