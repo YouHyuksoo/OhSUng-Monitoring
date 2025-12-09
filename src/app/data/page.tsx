@@ -321,38 +321,38 @@ export default function DataPage() {
         </div>
 
         {/* 검색 영역 */}
-        <div className="bg-card border border-border rounded-lg p-6 mb-6 shadow-sm">
-          <div className="flex flex-wrap items-end gap-4 mb-6">
+        <div className="bg-card border border-border rounded-lg p-5 mb-6 shadow-sm">
+          <div className="flex flex-wrap items-end gap-3">
             {/* 시작 날짜 */}
-            <div className="flex-shrink-0">
-              <label className="block text-sm font-medium text-foreground mb-2">
-                시작 날짜
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-muted-foreground">
+                시작
               </label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             {/* 종료 날짜 */}
-            <div className="flex-shrink-0">
-              <label className="block text-sm font-medium text-foreground mb-2">
-                종료 날짜
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-muted-foreground">
+                종료
               </label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             {/* 데이터 타입 선택 */}
-            <div className="flex-shrink-0">
-              <label className="block text-sm font-medium text-foreground mb-2">
-                데이터 타입
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-muted-foreground">
+                타입
               </label>
               <select
                 value={dataType}
@@ -362,26 +362,26 @@ export default function DataPage() {
                     setAddress("");
                   }
                 }}
-                className="px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="realtime">실시간 센서 데이터 (realtime_data)</option>
-                <option value="hourly">시간별 에너지 (hourly_energy)</option>
-                <option value="daily">일일 누적 에너지 (daily_energy)</option>
+                <option value="realtime">실시간</option>
+                <option value="hourly">시간별</option>
+                <option value="daily">일일</option>
               </select>
             </div>
 
             {/* 주소 선택 (daily 제외) */}
             {dataType !== "daily" && (
-              <div className="flex-shrink-0">
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  주소 (선택사항)
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  주소
                 </label>
                 <select
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="px-4 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">전체 주소</option>
+                  <option value="">전체</option>
                   {availableAddresses.map((addr) => (
                     <option key={addr} value={addr}>
                       {addr}
@@ -391,11 +391,11 @@ export default function DataPage() {
               </div>
             )}
 
-            {/* 버튼 영역 - 조회 버튼만 */}
+            {/* 조회 버튼 */}
             <button
               onClick={handleQuery}
               disabled={loading}
-              className="flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              className="flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               {loading ? (
                 <span>조회 중...</span>
@@ -410,41 +410,41 @@ export default function DataPage() {
 
           {/* 에러 메시지 */}
           {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/50 text-red-700 dark:text-red-400 rounded-md mb-4">
+            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/50 text-red-700 dark:text-red-400 rounded-md text-sm">
               {error}
             </div>
           )}
 
           {/* 성공 메시지 */}
           {success && (
-            <div className="p-4 bg-green-500/10 border border-green-500/50 text-green-700 dark:text-green-400 rounded-md mb-4">
+            <div className="mt-4 p-3 bg-green-500/10 border border-green-500/50 text-green-700 dark:text-green-400 rounded-md text-sm">
               {success}
             </div>
           )}
 
-          {/* 결과 통계 */}
+          {/* 결과 통계 및 버튼 */}
           {data.length > 0 && (
-            <div className="flex items-center justify-between">
+            <div className="mt-4 flex items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground">
                 <span className="font-semibold text-foreground">
                   {data.length}
                 </span>
-                개의 데이터를 조회했습니다.
+                개
               </p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleDownloadExcel}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium transition-colors text-sm"
                 >
                   <Download className="w-4 h-4" />
-                  엑셀 다운로드
+                  다운로드
                 </button>
                 <button
                   onClick={handleOpenDeleteDialog}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors text-sm"
                 >
                   <Trash2 className="w-4 h-4" />
-                  데이터 삭제
+                  삭제
                 </button>
               </div>
             </div>
@@ -453,23 +453,15 @@ export default function DataPage() {
 
         {/* realtime/hourly 데이터 테이블 */}
         {responseType !== "daily" && data.length > 0 && (
-          <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+          <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden mt-6">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs">
                 <thead className="bg-slate-100 dark:bg-slate-900 border-b border-border">
                   <tr>
-                    <th className="px-6 py-3 text-left font-semibold text-foreground">
-                      타임스탐프
-                    </th>
-                    <th className="px-6 py-3 text-left font-semibold text-foreground">
-                      주소
-                    </th>
-                    <th className="px-6 py-3 text-left font-semibold text-foreground">
-                      주소명 (설명)
-                    </th>
-                    <th className="px-6 py-3 text-right font-semibold text-foreground">
-                      값
-                    </th>
+                    <th className="px-4 py-2 text-left font-semibold text-foreground">시간</th>
+                    <th className="px-4 py-2 text-left font-semibold text-foreground">주소</th>
+                    <th className="px-4 py-2 text-left font-semibold text-foreground">설명</th>
+                    <th className="px-4 py-2 text-right font-semibold text-foreground">값</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -478,18 +470,22 @@ export default function DataPage() {
                       key={index}
                       className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
                     >
-                      <td className="px-6 py-3 text-muted-foreground">
-                        {new Date(point.timestamp).toLocaleString("ko-KR")}
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {new Date(point.timestamp).toLocaleTimeString("ko-KR")}
                       </td>
-                      <td className="px-6 py-3 font-medium text-foreground">
+                      <td className="px-4 py-2 font-medium text-foreground">
                         {point.address}
                       </td>
-                      <td className="px-6 py-3 text-foreground">
-                        <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs font-medium">
-                          {point.name || "미정의"}
-                        </span>
+                      <td className="px-4 py-2 text-foreground">
+                        {point.name ? (
+                          <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs font-medium">
+                            {point.name}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </td>
-                      <td className="px-6 py-3 text-right text-foreground font-semibold">
+                      <td className="px-4 py-2 text-right text-foreground font-semibold">
                         {typeof point.value === "number" ? point.value.toFixed(2) : "-"}
                       </td>
                     </tr>
@@ -500,8 +496,8 @@ export default function DataPage() {
 
             {/* 페이지네이션 정보 */}
             {data.length > 100 && (
-              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-border text-xs text-muted-foreground">
-                처음 100개 행만 표시됩니다. 전체 데이터는 엑셀 파일로 다운로드하세요.
+              <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-t border-border text-xs text-muted-foreground">
+                처음 100개만 표시 (전체는 다운로드)
               </div>
             )}
           </div>
@@ -509,27 +505,27 @@ export default function DataPage() {
 
         {/* daily 데이터 테이블 */}
         {responseType === "daily" && data.length > 0 && (
-          <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
+          <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden mt-6">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-100 dark:bg-slate-900 border-b border-border">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-100 dark:bg-slate-900 border-b border-border sticky top-0">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-foreground">날짜</th>
+                    <th className="px-3 py-2 text-left font-semibold text-foreground min-w-20">날짜</th>
                     {Array.from({ length: 24 }, (_, i) => (
-                      <th key={i} className="px-2 py-3 text-center font-semibold text-foreground text-xs">
-                        {String(i).padStart(2, "0")}시
+                      <th key={i} className="px-1.5 py-2 text-center font-semibold text-foreground text-xs min-w-12">
+                        {String(i).padStart(2, "0")}
                       </th>
                     ))}
-                    <th className="px-4 py-3 text-left font-semibold text-foreground">업데이트</th>
+                    <th className="px-3 py-2 text-left font-semibold text-foreground min-w-28">업데이트</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {(data as DailyDataPoint[]).slice(0, 100).map((row, index) => (
+                  {(data as DailyDataPoint[]).slice(0, 50).map((row, index) => (
                     <tr
                       key={index}
                       className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
                     >
-                      <td className="px-4 py-3 font-medium text-foreground">
+                      <td className="px-3 py-1.5 font-medium text-foreground">
                         {row.date}
                       </td>
                       {[
@@ -537,12 +533,12 @@ export default function DataPage() {
                         row.h8, row.h9, row.h10, row.h11, row.h12, row.h13, row.h14, row.h15,
                         row.h16, row.h17, row.h18, row.h19, row.h20, row.h21, row.h22, row.h23,
                       ].map((value, hIndex) => (
-                        <td key={hIndex} className="px-2 py-3 text-center text-sm text-foreground">
-                          {value}
+                        <td key={hIndex} className="px-1.5 py-1.5 text-center text-foreground">
+                          {value || "-"}
                         </td>
                       ))}
-                      <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {new Date(row.last_update).toLocaleString("ko-KR")}
+                      <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                        {new Date(row.last_update).toLocaleTimeString("ko-KR")}
                       </td>
                     </tr>
                   ))}
@@ -551,9 +547,9 @@ export default function DataPage() {
             </div>
 
             {/* 페이지네이션 정보 */}
-            {data.length > 100 && (
-              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-border text-xs text-muted-foreground">
-                처음 100개 행만 표시됩니다. 전체 데이터는 엑셀 파일로 다운로드하세요.
+            {data.length > 50 && (
+              <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900/50 border-t border-border text-xs text-muted-foreground">
+                처음 50개만 표시 (전체는 다운로드)
               </div>
             )}
           </div>
@@ -561,12 +557,9 @@ export default function DataPage() {
 
         {/* 빈 상태 */}
         {mounted && data.length === 0 && !loading && !error && (
-          <div className="bg-card border border-border rounded-lg p-12 text-center">
-            <p className="text-muted-foreground mb-4">
-              조회된 데이터가 없습니다.
-            </p>
+          <div className="bg-card border border-border rounded-lg p-8 text-center mt-6">
             <p className="text-sm text-muted-foreground">
-              위의 검색 조건을 입력하고 "조회" 버튼을 클릭하세요.
+              조회된 데이터가 없습니다. 위의 조건을 입력하고 조회 버튼을 클릭하세요.
             </p>
           </div>
         )}
