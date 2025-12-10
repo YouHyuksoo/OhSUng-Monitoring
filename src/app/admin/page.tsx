@@ -148,6 +148,7 @@ export default function AdminPage() {
           port: settings.plcPort,
           plcType: settings.plcType,
           modbusAddressMapping: settings.modbusAddressMapping,
+          interval: settings.plcPollingInterval, // 폴링 주기 추가
         }),
       });
 
