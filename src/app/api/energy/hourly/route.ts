@@ -19,7 +19,10 @@
  */
 
 import { NextResponse } from "next/server";
-import { hourlyEnergyService, DailyEnergyData } from "@/lib/hourly-energy-service";
+import {
+  hourlyEnergyService,
+  DailyEnergyData,
+} from "@/lib/hourly-energy-service";
 
 // 동적 라우트 (빌드 시 프리-렌더링하지 않음)
 export const dynamic = "force-dynamic";
@@ -93,7 +96,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    let { ip, port, plcType, modbusAddressMapping } = body;
+    let { ip, port, plcType, modbusAddressMapping, interval } = body;
 
     // 데모 모드일 경우 기본값 설정
     if (plcType === "demo") {
@@ -108,19 +111,26 @@ export async function POST(request: Request) {
       );
     }
 
+    // 폴링 주기 (기본 2000ms)
+    const pollingInterval = interval ? parseInt(interval) : 2000;
+
     // 폴링 시작 (연결 테스트 후 시작)
     await hourlyEnergyService.startHourlyPolling(
       ip,
       parseInt(port),
       plcType,
-      modbusAddressMapping
+      modbusAddressMapping,
+      pollingInterval
     );
 
     return NextResponse.json({
       success: true,
-      message: "Hourly polling started",
+      message: `Hourly polling started with ${
+        pollingInterval / 1000
+      }s interval`,
       ip,
       port,
+      interval: pollingInterval,
     });
   } catch (error) {
     console.error("Failed to start hourly polling:", error);

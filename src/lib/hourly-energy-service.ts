@@ -1,8 +1,10 @@
 /**
  * @file src/lib/hourly-energy-service.ts
  * @description
- * 일일 전력 누적 데이터 1시간 단위 폴링 서비스 (SQLite)
- * - WORD 100 (Modbus) 주소에서 매 정각마다 누적 전력량 수집
+ * 시간대별 전력 누적 데이터 폴링 서비스 (SQLite)
+ * - WORD 100 (Modbus) 주소에서 주기적으로 누적 전력량 수집
+ * - 기본 폴링 주기: 30초 (설정 가능)
+ * - 현재 시간의 컬럼(h0~h23)에 최신 값으로 덮어쓰기
  * - 서버 시간 기준으로 SQLite에 저장
  * - 날짜별 단일 행에 24개 시간 컬럼 (h0~h23) 저장
  *
@@ -11,12 +13,11 @@
  *
  * 데이터베이스 스키마:
  * - daily_energy 테이블: date(PK), h0~h23, last_update
- * - 기존 hourly_energy 테이블과 호환되지 않음 (마이그레이션 필요)
  *
  * 초보자 가이드:
  * 1. **테이블 구조**: 날짜별 한 행, 시간별 컬럼 (h0=0시, h23=23시)
- * 2. **저장 방식**: 해당 시간 컬럼만 UPDATE (UPSERT)
- * 3. **조회 방식**: 날짜 범위로 한 번에 조회
+ * 2. **저장 방식**: 현재 시간 컬럼에 최신 값 UPSERT (덮어쓰기)
+ * 3. **폴링 주기**: 기본 30초, 시작 시 설정 가능
  */
 
 import Database from "better-sqlite3";
@@ -125,15 +126,24 @@ class HourlyEnergyService {
   }
 
   /**
-   * 1시간 단위 폴링 시작
+   * 시간대별 에너지 폴링 시작
+   * - 주기적으로 PLC에서 전력량을 읽어 현재 시간 컬럼에 저장
+   * - 폴링 주기: settings.plcPollingInterval과 동일 (기본 2초)
    * - 한 번만 PLC 연결 체크 후 성공하면 폴링 루프 시작
    * - 연결 실패하면 에러 던짐 (폴링 루프 시작 안 함)
+   *
+   * @param ip PLC IP 주소
+   * @param port PLC 포트
+   * @param plcType PLC 타입 (mc, modbus, demo)
+   * @param addressMapping Modbus 주소 매핑 (선택)
+   * @param pollingInterval 폴링 주기 (밀리초, 기본: 2000 = 실시간과 동일)
    */
   async startHourlyPolling(
     ip: string,
     port: number,
     plcType: string = "mc",
-    addressMapping?: any
+    addressMapping?: any,
+    pollingInterval: number = 2000 // 실시간 폴링과 동일한 기본 주기
   ): Promise<void> {
     this.ip = ip;
     this.port = port;
@@ -141,6 +151,12 @@ class HourlyEnergyService {
     // DB 초기화
     if (!this.db) {
       this.initializeDatabase();
+    }
+
+    // 기존 폴링 중지
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
     }
 
     // 연결 설정
@@ -184,10 +200,19 @@ class HourlyEnergyService {
     // 오늘 데이터 로드
     this.loadTodayData();
 
-    // 다음 정각 스케줄링
-    this.scheduleNextPoll();
+    // ✅ 즉시 첫 폴링 실행
+    await this.pollD6100();
 
-    console.log(`[HourlyEnergyService] Started for ${ip}:${port}`);
+    // ✅ 주기적 폴링 설정 (setInterval 사용)
+    this.pollingInterval = setInterval(() => {
+      this.pollD6100();
+    }, pollingInterval);
+
+    console.log(
+      `[HourlyEnergyService] Started for ${ip}:${port} with ${
+        pollingInterval / 1000
+      }s interval`
+    );
   }
 
   /**
@@ -195,7 +220,7 @@ class HourlyEnergyService {
    */
   stopHourlyPolling(): void {
     if (this.pollingInterval) {
-      clearTimeout(this.pollingInterval);
+      clearInterval(this.pollingInterval); // setInterval 사용으로 변경
       this.pollingInterval = null;
     }
   }
@@ -653,7 +678,7 @@ class HourlyEnergyService {
       const startTime = Date.now();
 
       console.log(
-        `[HourlyEnergyService] Poll started - ${today} ${hour}:00:00, connecting to PLC...`
+        `[HourlyEnergyService] Polling h${hour} - ${today}, connecting to PLC...`
       );
 
       // 전력 누적 데이터 주소: WORD 100 (D6100 → 100)
@@ -667,15 +692,12 @@ class HourlyEnergyService {
           this.currentData.hours[hour] = value;
           this.currentData.lastUpdate = Date.now();
 
-          // DB에 해당 시간만 업데이트
+          // DB에 해당 시간만 업데이트 (덮어쓰기)
           this.saveHourValue(today, hour, value);
-
-          // 다음 정각 스케줄링
-          this.scheduleNextPoll();
 
           // 성공 로그
           console.log(
-            `[HourlyEnergyService] ✅ Poll success - WORD 100: ${value}Wh (${elapsed}ms)`
+            `[HourlyEnergyService] ✅ h${hour} updated - WORD 100: ${value}Wh (${elapsed}ms)`
           );
         } else {
           console.error(
@@ -688,7 +710,6 @@ class HourlyEnergyService {
             value
           )} (${elapsed}ms)`
         );
-        this.scheduleNextPoll();
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -698,7 +719,7 @@ class HourlyEnergyService {
       } else {
         console.error(`[HourlyEnergyService] ❌ Poll failed - ${error}`);
       }
-      this.scheduleNextPoll();
+      // setInterval이 자동으로 다음 폴링 처리 - 별도 스케줄링 불필요
     }
   };
 
