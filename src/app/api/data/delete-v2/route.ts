@@ -38,12 +38,10 @@ export async function DELETE(request: Request) {
     // 데이터 삭제 실행
     let deletedCount = 0;
 
-    if (type === "daily") {
-      // 일일 데이터 삭제 (HourlyEnergyService)
+    if (type === "daily" || type === "hourly") {
+      // hourly/daily 모두 daily_energy 테이블에서 삭제
+      // (hourly는 시간별 데이터, daily는 일별 합계 - 둘 다 같은 테이블)
       deletedCount = hourlyEnergyService.deleteDailyData(from, to);
-    } else if (type === "hourly") {
-      // 시간별 데이터 삭제 (HourlyEnergyService)
-      deletedCount = hourlyEnergyService.deleteHourlyData(from, to);
     } else {
       // 실시간 센서 데이터 삭제 (RealtimeDataService) - 기본값
       deletedCount = realtimeDataService.deleteDataByDateRange(

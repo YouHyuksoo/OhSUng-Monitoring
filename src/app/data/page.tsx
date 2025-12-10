@@ -40,7 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * 실시간/시간별 데이터 포인트
+ * 실시간 데이터 포인트
  */
 interface DataPoint {
   timestamp: number;
@@ -50,9 +50,10 @@ interface DataPoint {
 }
 
 /**
- * 일일 에너지 데이터 포인트 (날짜 + h0-h23 + last_update)
+ * 시간별 에너지 데이터 포인트 (날짜 + h0-h23 + last_update)
+ * - daily_energy 테이블에서 조회
  */
-interface DailyDataPoint {
+interface HourlyDataPoint {
   date: string;
   h0: number;
   h1: number;
@@ -81,10 +82,20 @@ interface DailyDataPoint {
   last_update: number;
 }
 
+/**
+ * 일일 누적 에너지 데이터 포인트 (날짜 + 합계)
+ * - daily_energy 테이블에서 h0~h23 합계 계산
+ */
+interface DailySummaryPoint {
+  date: string;
+  total: number;
+  last_update: number;
+}
+
 interface QueryResult {
   address?: string;
   type: "realtime" | "hourly" | "daily";
-  data: DataPoint[] | DailyDataPoint[];
+  data: DataPoint[] | HourlyDataPoint[] | DailySummaryPoint[];
   count: number;
 }
 
@@ -96,7 +107,9 @@ export default function DataPage() {
   const [dataType, setDataType] = useState<"realtime" | "hourly" | "daily">(
     "realtime"
   );
-  const [data, setData] = useState<DataPoint[] | DailyDataPoint[]>([]);
+  const [data, setData] = useState<
+    DataPoint[] | HourlyDataPoint[] | DailySummaryPoint[]
+  >([]);
   const [responseType, setResponseType] = useState<
     "realtime" | "hourly" | "daily"
   >("realtime");
@@ -203,9 +216,9 @@ export default function DataPage() {
       let colWidths: any[] = [];
       let sheetName = "Data";
 
-      if (responseType === "daily") {
-        // daily_energy: 날짜 + h0-h23 + last_update
-        excelData = (data as DailyDataPoint[]).map((row) => ({
+      if (responseType === "hourly") {
+        // hourly: 날짜 + h0-h23 + last_update (시간별 에너지)
+        excelData = (data as HourlyDataPoint[]).map((row) => ({
           날짜: row.date,
           "00시": row.h0,
           "01시": row.h1,
@@ -234,17 +247,26 @@ export default function DataPage() {
           "마지막 업데이트": new Date(row.last_update).toLocaleString("ko-KR"),
         }));
         colWidths = Array(26).fill({ wch: 12 });
-        sheetName = "일일에너지";
+        sheetName = "시간별에너지";
+      } else if (responseType === "daily") {
+        // daily: 날짜 + 합계 (일일 누적 에너지)
+        excelData = (data as DailySummaryPoint[]).map((row) => ({
+          날짜: row.date,
+          "일일 합계 (Wh)": row.total,
+          "마지막 업데이트": new Date(row.last_update).toLocaleString("ko-KR"),
+        }));
+        colWidths = [{ wch: 15 }, { wch: 18 }, { wch: 22 }];
+        sheetName = "일일누적에너지";
       } else {
-        // realtime/hourly: 타임스탐프 + 주소 + 주소명 + 값
+        // realtime: 타임스탬프 + 주소 + 주소명 + 값
         excelData = (data as DataPoint[]).map((point) => ({
-          타임스탐프: new Date(point.timestamp).toLocaleString("ko-KR"),
+          타임스탬프: new Date(point.timestamp).toLocaleString("ko-KR"),
           주소: point.address,
           주소명: point.name || "-",
           값: point.value,
         }));
         colWidths = [{ wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 15 }];
-        sheetName = responseType === "hourly" ? "시간별에너지" : "실시간센서";
+        sheetName = "실시간센서";
       }
 
       // 워크북 생성
@@ -490,7 +512,8 @@ export default function DataPage() {
           {data.length > 0 ? (
             <div className="relative w-full overflow-auto max-h-[600px]">
               <table className="w-full caption-bottom text-sm text-left">
-                {responseType === "daily" ? (
+                {responseType === "hourly" ? (
+                  // 시간별 에너지: 날짜 + h0~h23 + 업데이트
                   <thead className="sticky top-0 bg-secondary text-secondary-foreground z-10">
                     <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                       <th className="h-12 px-4 align-middle font-medium text-muted-foreground min-w-[100px]">
@@ -509,7 +532,23 @@ export default function DataPage() {
                       </th>
                     </tr>
                   </thead>
+                ) : responseType === "daily" ? (
+                  // 일일 누적 에너지: 날짜 + 합계 + 업데이트
+                  <thead className="sticky top-0 bg-secondary text-secondary-foreground z-10">
+                    <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                      <th className="h-12 px-4 align-middle font-medium text-muted-foreground w-[150px]">
+                        날짜
+                      </th>
+                      <th className="h-12 px-4 align-middle font-medium text-muted-foreground text-right w-[180px]">
+                        일일 합계 (Wh)
+                      </th>
+                      <th className="h-12 px-4 align-middle font-medium text-muted-foreground w-[200px]">
+                        마지막 업데이트
+                      </th>
+                    </tr>
+                  </thead>
                 ) : (
+                  // 실시간 센서: 시간 + 주소 + 설명 + 값
                   <thead className="sticky top-0 bg-secondary text-secondary-foreground z-10">
                     <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                       <th className="h-12 px-4 align-middle font-medium text-muted-foreground w-[200px]">
@@ -529,8 +568,9 @@ export default function DataPage() {
                 )}
 
                 <tbody className="[&_tr:last-child]:border-0">
-                  {responseType === "daily"
-                    ? (data as DailyDataPoint[])
+                  {responseType === "hourly"
+                    ? // 시간별 에너지: h0~h23 컬럼
+                      (data as HourlyDataPoint[])
                         .slice(0, 100)
                         .map((row, index) => (
                           <tr
@@ -582,7 +622,32 @@ export default function DataPage() {
                             </td>
                           </tr>
                         ))
-                    : (data as DataPoint[])
+                    : responseType === "daily"
+                    ? // 일일 누적 에너지: 날짜 + 합계
+                      (data as DailySummaryPoint[])
+                        .slice(0, 100)
+                        .map((row, index) => (
+                          <tr
+                            key={index}
+                            className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                          >
+                            <td className="p-4 align-middle font-medium">
+                              {row.date}
+                            </td>
+                            <td className="p-4 align-middle text-right font-mono font-medium">
+                              {row.total !== null && row.total !== undefined
+                                ? row.total.toLocaleString()
+                                : "-"}
+                            </td>
+                            <td className="p-4 align-middle text-muted-foreground">
+                              {new Date(row.last_update).toLocaleString(
+                                "ko-KR"
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                    : // 실시간 센서
+                      (data as DataPoint[])
                         .slice(0, 100)
                         .map((point, index) => (
                           <tr
