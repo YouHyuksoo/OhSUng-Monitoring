@@ -17,7 +17,6 @@
 
 import { NextResponse } from "next/server";
 import { realtimeDataService } from "@/lib/realtime-data-service";
-import { pollingService } from "@/lib/plc-polling-service";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -57,18 +56,21 @@ export async function GET(request: Request) {
       console.error("[API] Failed to read settings:", error);
     }
 
-    console.log(`[API] Realtime data request - address: ${address}, useMemoryPolling: ${useMemoryPolling}`);
+    console.log(
+      `[API] Realtime data request - address: ${address}, useMemoryPolling: ${useMemoryPolling}`
+    );
 
     let recentData: any[] = [];
     let setAddressData: any[] | null = null;
 
     if (useMemoryPolling) {
       /**
-       * 메모리 모드: pollingService에서 최근 20개 조회
+       * 메모리 모드: realtimeDataService에서 최근 20개 조회
+       * - 실제 폴링 중인 데이터가 저장된 memoryCache 사용
        * - hours, limit 파라미터 무시
        * - 항상 메모리의 모든 데이터 반환
        */
-      const historyData = pollingService.getDataHistory(address);
+      const historyData = realtimeDataService.getMemoryCache(address);
       recentData = historyData.map((point) => ({
         timestamp: point.timestamp,
         value: point.value,
@@ -76,32 +78,38 @@ export async function GET(request: Request) {
 
       // setAddress 있으면 함께 조회
       if (setAddress) {
-        const setHistoryData = pollingService.getDataHistory(setAddress);
+        const setHistoryData = realtimeDataService.getMemoryCache(setAddress);
         setAddressData = setHistoryData.map((point) => ({
           timestamp: point.timestamp,
           value: point.value,
         }));
       }
 
-      console.log(`[API] Memory mode - address: ${address}, data points: ${recentData.length}`);
+      console.log(
+        `[API] Memory mode - address: ${address}, data points: ${recentData.length}`
+      );
     } else {
       /**
        * DB 모드: realtimeDataService에서 조회
        * - hours 우선: N시간 범위 데이터 조회
        * - limit: 최근 N개 데이터 조회
        */
-      recentData = hours !== null
-        ? realtimeDataService.getRecentDataByTime(address, hours)
-        : realtimeDataService.getRecentData(address, limit);
+      recentData =
+        hours !== null
+          ? realtimeDataService.getRecentDataByTime(address, hours)
+          : realtimeDataService.getRecentData(address, limit);
 
       // setAddress가 있으면 함께 조회
       if (setAddress) {
-        setAddressData = hours !== null
-          ? realtimeDataService.getRecentDataByTime(setAddress, hours)
-          : realtimeDataService.getRecentData(setAddress, limit);
+        setAddressData =
+          hours !== null
+            ? realtimeDataService.getRecentDataByTime(setAddress, hours)
+            : realtimeDataService.getRecentData(setAddress, limit);
       }
 
-      console.log(`[API] DB mode - address: ${address}, data points: ${recentData.length}`);
+      console.log(
+        `[API] DB mode - address: ${address}, data points: ${recentData.length}`
+      );
     }
 
     // 데이터 병합 (타임스탬프 기준)

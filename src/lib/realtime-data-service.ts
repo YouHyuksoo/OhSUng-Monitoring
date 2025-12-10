@@ -64,12 +64,18 @@ class RealtimeDataService {
         this.db.prepare("SELECT name FROM realtime_data LIMIT 0").all();
       } catch {
         // name 컬럼이 없으면 추가
-        console.log("[RealtimeDataService] Adding 'name' column to realtime_data table...");
+        console.log(
+          "[RealtimeDataService] Adding 'name' column to realtime_data table..."
+        );
         try {
-          this.db.exec(`ALTER TABLE realtime_data ADD COLUMN name TEXT DEFAULT NULL;`);
+          this.db.exec(
+            `ALTER TABLE realtime_data ADD COLUMN name TEXT DEFAULT NULL;`
+          );
           console.log("[RealtimeDataService] 'name' column added successfully");
         } catch (altError) {
-          console.log("[RealtimeDataService] 'name' column might already exist or table doesn't exist yet");
+          console.log(
+            "[RealtimeDataService] 'name' column might already exist or table doesn't exist yet"
+          );
         }
       }
 
@@ -129,7 +135,10 @@ class RealtimeDataService {
       Object.entries(addressNameMap).forEach(([address, name]) => {
         this.addressNameMap.set(address, name);
       });
-      console.log("[RealtimeDataService] Address name map loaded:", this.addressNameMap);
+      console.log(
+        "[RealtimeDataService] Address name map loaded:",
+        this.addressNameMap
+      );
     }
 
     // 연결 설정
@@ -155,21 +164,17 @@ class RealtimeDataService {
         console.log(`[RealtimeDataService] 📊 테스트 응답:`, testData);
 
         // null 값만 있으면 실패 (0이나 다른 숫자는 정상 응답)
-        const hasOnlyNull = values.length === 0 ||
-                           values.every(val => val === null || val === undefined);
+        const hasOnlyNull =
+          values.length === 0 ||
+          values.every((val) => val === null || val === undefined);
         if (hasOnlyNull) {
           throw new Error("PLC에서 유효한 응답이 없습니다");
         }
 
-        console.log(
-          `[RealtimeDataService] ✅ PLC 연결 성공! 폴링 루프 시작`
-        );
+        console.log(`[RealtimeDataService] ✅ PLC 연결 성공! 폴링 루프 시작`);
       } catch (error) {
-        const errorMsg =
-          error instanceof Error ? error.message : String(error);
-        console.error(
-          `[RealtimeDataService] ❌ 연결 테스트 실패: ${errorMsg}`
-        );
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error(`[RealtimeDataService] ❌ 연결 테스트 실패: ${errorMsg}`);
         this.connection = null;
         throw new Error(`PLC 연결 실패: ${errorMsg}`);
       }
@@ -352,7 +357,6 @@ class RealtimeDataService {
     }
   }
 
-
   /**
    * 가상 데이터를 DB 및 메모리 캐시에 저장 (테스트용)
    * @param points 저장할 데이터 포인트 배열
@@ -390,6 +394,17 @@ class RealtimeDataService {
       return null;
     }
     return cache[cache.length - 1].value;
+  }
+
+  /**
+   * 특정 주소의 메모리 캐시 데이터 조회
+   * - useMemoryPolling이 true일 때 API에서 사용
+   * - 최근 20개의 폴링 데이터를 반환
+   * @param address PLC 주소
+   * @returns 메모리 캐시에 저장된 최근 데이터 포인트 배열
+   */
+  getMemoryCache(address: string): RealtimeDataPoint[] {
+    return this.memoryCache.get(address) || [];
   }
 
   /**
@@ -491,7 +506,11 @@ class RealtimeDataService {
    * @param to YYYY-MM-DD 형식의 종료 날짜
    * @param address 특정 주소 (선택 사항)
    */
-  getDateRangeData(from: string, to: string, address?: string): RealtimeDataPoint[] {
+  getDateRangeData(
+    from: string,
+    to: string,
+    address?: string
+  ): RealtimeDataPoint[] {
     if (!this.db) {
       this.initializeDatabase();
     }
@@ -522,7 +541,10 @@ class RealtimeDataService {
       const stmt = this.db!.prepare(query);
       return stmt.all(...params) as RealtimeDataPoint[];
     } catch (error) {
-      console.error("[RealtimeDataService] Failed to get date range data:", error);
+      console.error(
+        "[RealtimeDataService] Failed to get date range data:",
+        error
+      );
       return [];
     }
   }
@@ -534,7 +556,11 @@ class RealtimeDataService {
    * @param address 특정 주소 (선택 사항)
    * @returns 삭제된 데이터 개수
    */
-  deleteDataByDateRange(from: string, to: string, address: string | null | undefined = undefined): number {
+  deleteDataByDateRange(
+    from: string,
+    to: string,
+    address: string | null | undefined = undefined
+  ): number {
     if (!this.db) {
       this.initializeDatabase();
     }
@@ -564,7 +590,9 @@ class RealtimeDataService {
       const result = stmt.run(...params);
 
       console.log(
-        `[RealtimeDataService] Deleted ${result.changes} data points from ${from} to ${to}${
+        `[RealtimeDataService] Deleted ${
+          result.changes
+        } data points from ${from} to ${to}${
           address ? ` for address ${address}` : ""
         }`
       );
