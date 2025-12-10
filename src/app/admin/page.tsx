@@ -73,7 +73,6 @@ export default function AdminPage() {
   const [pollingErrorDialog, setPollingErrorDialog] = useState(false);
   const [pollingErrorMessage, setPollingErrorMessage] = useState("");
 
-
   // DB 통계 조회
   const checkDBStats = async () => {
     try {
@@ -87,6 +86,29 @@ export default function AdminPage() {
     }
   };
 
+  /**
+   * 폴링 상태 체크
+   * - 페이지 로드 시 서버에서 현재 폴링 상태를 조회하여 UI와 동기화
+   */
+  const checkPollingStatus = async () => {
+    try {
+      const response = await fetch("/api/polling/status");
+      if (response.ok) {
+        const data = await response.json();
+        // 실시간 또는 시간별 폴링 중 하나라도 활성이면 폴링 활성 상태로 표시
+        const isActive = data.status === "running";
+        setIsPollingActive(isActive);
+        console.log(
+          `[Admin] Polling status synced: ${isActive ? "활성" : "비활성"}`
+        );
+      }
+    } catch (error) {
+      // 오류 시 비활성 상태로 표시 (안전한 기본값)
+      setIsPollingActive(false);
+      console.error("[Admin] Failed to check polling status:", error);
+    }
+  };
+
   // 초기 로드
   useEffect(() => {
     setMounted(true);
@@ -94,8 +116,9 @@ export default function AdminPage() {
     if (!lastRefresh) {
       setLastRefresh(new Date().toLocaleTimeString());
     }
-    // 페이지 진입 시 딱 한 번만 DB 통계 조회
+    // 페이지 진입 시 딱 한 번만 상태 조회
     checkDBStats();
+    checkPollingStatus(); // 폴링 상태 동기화 추가
   }, []);
 
   /**
@@ -155,10 +178,10 @@ export default function AdminPage() {
       // 성공 시에만 UI 업데이트
       setIsPollingActive(true);
       setLastRefresh(new Date().toLocaleTimeString());
-
     } catch (error) {
       console.error("Failed to start polling:", error);
-      const errorMsg = error instanceof Error ? error.message : "알 수 없는 오류";
+      const errorMsg =
+        error instanceof Error ? error.message : "알 수 없는 오류";
       setPollingErrorMessage(errorMsg);
       setPollingErrorDialog(true);
       setIsPollingActive(false);
@@ -291,7 +314,6 @@ export default function AdminPage() {
               </p>
             </div>
           </div>
-
 
           {/* 액션 버튼 */}
           <div className="flex gap-3">
@@ -509,9 +531,7 @@ export default function AdminPage() {
               </div>
               <h3 className="text-lg font-bold text-white">폴링 시작 실패</h3>
             </div>
-            <p className="text-sm text-slate-300 mb-6">
-              {pollingErrorMessage}
-            </p>
+            <p className="text-sm text-slate-300 mb-6">{pollingErrorMessage}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setPollingErrorDialog(false)}
