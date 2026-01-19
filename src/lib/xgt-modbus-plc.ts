@@ -91,6 +91,8 @@ export class XgtModbusPLC implements PLCConnector {
             `Connected to LS PLC (Modbus TCP) at ${this.ip}:${this.port}`
           );
           this.client.setID(this.slaveId);
+          // TCP 타임아웃을 120초로 설정 (기본값 10초 → 폴링 간격이 길어도 연결 유지)
+          this.client.setTimeout(120000);
           this.isConnected = true;
 
           // 연결 끊김 감지를 위한 이벤트 리스너
