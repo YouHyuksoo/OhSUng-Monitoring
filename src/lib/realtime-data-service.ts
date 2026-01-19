@@ -49,6 +49,18 @@ class RealtimeDataService {
   private maxDataPoints = 20; // 메모리 캐시 최대 포인트
   private addressNameMap = new Map<string, string>(); // 주소별 이름 매핑
 
+  // 폴링 통계 (디버깅용)
+  private pollingStats = {
+    totalPolls: 0,
+    successfulPolls: 0,
+    failedPolls: 0,
+    consecutiveFailures: 0,
+    allZeroResponses: 0,
+    lastPollTime: 0,
+    lastSuccessTime: 0,
+    currentInterval: 0
+  };
+
   /**
    * 데이터베이스 초기화
    * - realtime_data 테이블 생성 또는 업그레이드
@@ -180,14 +192,32 @@ class RealtimeDataService {
       }
     }
 
+    // 폴링 통계 초기화
+    this.pollingStats = {
+      totalPolls: 0,
+      successfulPolls: 0,
+      failedPolls: 0,
+      consecutiveFailures: 0,
+      allZeroResponses: 0,
+      lastPollTime: 0,
+      lastSuccessTime: 0,
+      currentInterval: interval
+    };
+
     // 연결 성공 후 주기적 폴링 설정
     this.pollingInterval = setInterval(() => {
       this.pollData();
     }, interval);
 
-    console.log(
-      `[RealtimeDataService] Started polling ${addresses.length} addresses with interval ${interval}ms`
-    );
+    console.log("\n" + "#".repeat(70));
+    console.log(`[RealtimeDataService] 폴링 시작!`);
+    console.log(`   주소 개수: ${addresses.length}개`);
+    console.log(`   인터벌: ${interval}ms (${interval/1000}초)`);
+    if (interval > 10000) {
+      console.log(`   ⚠️ 경고: 폴링 인터벌이 10초 이상입니다!`);
+      console.log(`      PLC 연결 유지 시간(Keep-alive) 초과로 값이 0이 될 수 있습니다.`);
+    }
+    console.log("#".repeat(70) + "\n");
   }
 
   /**
@@ -218,22 +248,65 @@ class RealtimeDataService {
       return;
     }
 
+    const pollStartTime = Date.now();
+    this.pollingStats.totalPolls++;
+    this.pollingStats.lastPollTime = pollStartTime;
+
+    // 마지막 성공 이후 경과 시간
+    const timeSinceLastSuccess = this.pollingStats.lastSuccessTime
+      ? pollStartTime - this.pollingStats.lastSuccessTime
+      : 0;
+
+    console.log(`\n[RealtimeDataService][POLL_START]`);
+    console.log(`   폴링 #${this.pollingStats.totalPolls}`);
+    console.log(`   마지막 성공 이후: ${timeSinceLastSuccess}ms (${(timeSinceLastSuccess/1000).toFixed(1)}초)`);
+    console.log(`   인터벌: ${this.pollingStats.currentInterval}ms`);
+
     try {
       const data = await this.connection.read(this.currentAddresses);
       const timestamp = Date.now();
+      const pollDuration = timestamp - pollStartTime;
 
-      // 🔍 폴링 데이터 상세 로깅
+      // 모든 값이 0인지 체크
+      const values = Object.values(data);
+      const allZero = values.length > 0 && values.every(v => v === 0);
+      const nonZeroCount = values.filter(v => v !== 0).length;
+
+      if (allZero) {
+        this.pollingStats.allZeroResponses++;
+        this.pollingStats.consecutiveFailures++;
+        console.log("\n" + "⚠".repeat(35));
+        console.log(`[RealtimeDataService] ⚠️ 모든 값이 0!`);
+        console.log(`   총 0응답 횟수: ${this.pollingStats.allZeroResponses}`);
+        console.log(`   연속 실패: ${this.pollingStats.consecutiveFailures}`);
+        console.log(`   폴링 소요 시간: ${pollDuration}ms`);
+        console.log(`   가능한 원인:`);
+        console.log(`      - 폴링 인터벌(${this.pollingStats.currentInterval}ms)이 PLC 연결 유지 시간 초과`);
+        console.log(`      - PLC가 연결을 끊음`);
+        console.log(`      - 네트워크 불안정`);
+        if (this.pollingStats.currentInterval > 10000) {
+          console.log(`   💡 권장: 폴링 인터벌을 10초 이하로 줄여보세요`);
+        }
+        console.log("⚠".repeat(35) + "\n");
+      } else {
+        this.pollingStats.successfulPolls++;
+        this.pollingStats.lastSuccessTime = timestamp;
+        this.pollingStats.consecutiveFailures = 0;
+      }
+
+      // 폴링 데이터 로깅
       console.log("\n" + "─".repeat(70));
-      console.log(`📊 [폴링 ${new Date().toLocaleTimeString("ko-KR")}]`);
+      console.log(`📊 [폴링 ${new Date().toLocaleTimeString("ko-KR")}] (${pollDuration}ms)`);
+      console.log(`   통계: 성공 ${this.pollingStats.successfulPolls}/${this.pollingStats.totalPolls}, 0응답 ${this.pollingStats.allZeroResponses}`);
       console.log("─".repeat(70));
-      console.log("📍 주소별 값:");
+      console.log(`📍 주소별 값 (${nonZeroCount}/${values.length}개가 0이 아님):`);
 
       // 각 주소별로 데이터 저장
       Object.entries(data).forEach(([address, value]) => {
         if (typeof value === "number") {
           const name = this.addressNameMap.get(address);
           const displayName = name ? `${address} (${name})` : address;
-          console.log(`   ${displayName}: ${value}`);
+          console.log(`   ${displayName}: ${value}${value === 0 ? ' ⚠️' : ''}`);
           this.saveToDatabase(address, value, timestamp);
           this.updateMemoryCache(address, value, timestamp);
         } else {
@@ -242,7 +315,16 @@ class RealtimeDataService {
       });
       console.log("─".repeat(70) + "\n");
     } catch (error) {
-      console.error("[RealtimeDataService] Polling failed:", error);
+      this.pollingStats.failedPolls++;
+      this.pollingStats.consecutiveFailures++;
+      const errorMsg = error instanceof Error ? error.message : String(error);
+
+      console.error("\n" + "!".repeat(70));
+      console.error(`[RealtimeDataService] ❌ 폴링 실패!`);
+      console.error(`   에러: ${errorMsg}`);
+      console.error(`   연속 실패: ${this.pollingStats.consecutiveFailures}회`);
+      console.error(`   총 실패: ${this.pollingStats.failedPolls}/${this.pollingStats.totalPolls}`);
+      console.error("!".repeat(70) + "\n");
     }
   }
 
