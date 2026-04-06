@@ -235,7 +235,7 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
     labels: hourlyData.map((d) => d.hour),
     datasets: [
       {
-        label: "시간별 에너지 (kWh)",
+        label: "시간별 에너지 (kW)",
         data: hourlyData.map((d) => d.value / 1000),
         backgroundColor: (context: any) => {
           const chart = context.chart;
@@ -257,7 +257,7 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
     labels: dailyData.map((d) => d.day),
     datasets: [
       {
-        label: "일별 에너지 (kWh)",
+        label: "일별 에너지 (kW)",
         data: dailyData.map((d) => d.value / 1000),
         backgroundColor: (context: any) => {
           const chart = context.chart;
@@ -294,11 +294,11 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
           label: function (context) {
             // null 체크: 데이터가 없거나 유효하지 않을 경우 안전하게 처리
             if (context.parsed.y === null || context.parsed.y === undefined) {
-              return "0.0 kWh";
+              return "0.0 kW";
             }
             return `${context.parsed.y.toLocaleString(undefined, {
               maximumFractionDigits: 1,
-            })} kWh`;
+            })} kW`;
           },
         },
       },
@@ -323,9 +323,14 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
         },
         ticks: {
           color: textColor,
-          font: {
-            size: 10,
-          },
+          font: { size: 10 },
+          callback: (value: any) => `${value} kW`,
+        },
+        title: {
+          display: true,
+          text: "kW",
+          color: textColor,
+          font: { size: 11 },
         },
       },
     },
@@ -350,7 +355,7 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
             {(totals.today / 1000).toLocaleString(undefined, {
               maximumFractionDigits: 1,
             })}
-            kWh
+            kW
           </div>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-3 text-white dark:from-green-900 dark:to-green-950">
@@ -359,7 +364,7 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
             {(totals.weekly / 1000).toLocaleString(undefined, {
               maximumFractionDigits: 1,
             })}
-            kWh
+            kW
           </div>
         </div>
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-3 text-white dark:from-purple-900 dark:to-purple-950">
@@ -368,7 +373,7 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
             {(totals.monthly / 1000).toLocaleString(undefined, {
               maximumFractionDigits: 1,
             })}
-            kWh
+            kW
           </div>
         </div>
       </div>
