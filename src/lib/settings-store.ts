@@ -20,7 +20,9 @@ export interface ChartConfig {
   type: "power" | "sujul" | "yeolpung";
   address: string;
   setAddress?: string;
-  accumulationAddress?: string;
+  accumulationAddress?: string; // 일별 누적 주소 (D6100: 매일 23:59 리셋)
+  hourlyAddress?: string;       // 시간별 누적 주소 (D6102: 매 시간 리셋)
+  isDword?: boolean;            // 32bit DWORD 주소 여부
 }
 
 export interface ModbusAddressMapping {
@@ -88,7 +90,7 @@ const DEFAULT_SETTINGS: Settings = {
       id: "power-1",
       name: "순방향 유효전력량",
       type: "power",
-      address: "32",  // WORD 32 (D6032: PC 주소 기준, 순방향 유효전력량)
+      address: "24",  // WORD 24 (D6024: PC 주소 기준, 순방향 유효전력량)
       accumulationAddress: "50",  // WORD 50 (D6050: PC 주소 기준, TOTAL 누적전력)
     },
 
@@ -247,8 +249,8 @@ export const useSettingsStore = create<SettingsStore>()(
           error instanceof Error ? error.message : "Failed to load settings";
         console.error("Failed to load settings from server:", errorMsg);
 
+        // 에러 시 기존 settings 유지 (DEFAULT_SETTINGS로 덮어쓰지 않음)
         set((state) => {
-          state.settings = DEFAULT_SETTINGS;
           state.isLoaded = true;
           state.isLoading = false;
           state.error = errorMsg;

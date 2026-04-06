@@ -132,10 +132,11 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
 
         console.log(`[PowerUsageChart] 📊 Today data:`, todayData);
 
-        // 시간별 차트 데이터 변환 (0~23시)
+        // 시간별 차트 데이터 변환 (D6102: 매 시간 리셋되므로 그대로 사용)
         const hourlyChartData = [];
+        const hours = todayData.hours || [];
         for (let hour = 0; hour < 24; hour++) {
-          const value = todayData.hours?.[hour] || 0;
+          const value = hours[hour] || 0;
           hourlyChartData.push({
             hour: `${hour}시`,
             value,

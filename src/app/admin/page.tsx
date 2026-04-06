@@ -131,24 +131,32 @@ export default function AdminPage() {
     setIsStartingPolling(true);
 
     try {
-      // 0. 설정 검증 (필수값 체크)
-      if (!settings.plcIp || !settings.plcPort) {
+      // 0. 항상 최신 설정을 서버에서 직접 읽기 (캐시 우회)
+      const settingsRes = await fetch("/api/settings");
+      if (!settingsRes.ok) throw new Error("설정 로드 실패");
+      const latestSettings = await settingsRes.json();
+
+      const currentSettings = { ...settings, ...latestSettings };
+
+      // 1. 설정 검증 (필수값 체크)
+      if (!currentSettings.plcIp || !currentSettings.plcPort) {
         throw new Error("PLC IP/Port 설정이 필요합니다");
       }
-      if (!settings.chartConfigs || settings.chartConfigs.length === 0) {
+      if (!currentSettings.chartConfigs || currentSettings.chartConfigs.length === 0) {
         throw new Error("모니터링할 차트 설정이 필요합니다");
       }
 
-      // 1. 시간별 에너지 폴링 시작
+      // 2. 시간별 에너지 폴링 시작
       const hourlyResponse = await fetch("/api/energy/hourly", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ip: settings.plcIp,
-          port: settings.plcPort,
-          plcType: settings.plcType,
-          modbusAddressMapping: settings.modbusAddressMapping,
-          interval: settings.plcPollingInterval, // 폴링 주기 추가
+          ip: currentSettings.plcIp,
+          port: currentSettings.plcPort,
+          plcType: currentSettings.plcType,
+          modbusAddressMapping: currentSettings.modbusAddressMapping,
+          interval: currentSettings.plcPollingInterval,
+          chartConfigs: currentSettings.chartConfigs,
         }),
       });
 
@@ -157,17 +165,17 @@ export default function AdminPage() {
         throw new Error(errorData.error || "시간별 에너지 폴링 시작 실패");
       }
 
-      // 2. 실시간 데이터 폴링 시작
+      // 3. 실시간 데이터 폴링 시작
       const realtimeResponse = await fetch("/api/realtime/polling", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ip: settings.plcIp,
-          port: settings.plcPort,
-          interval: settings.plcPollingInterval,
-          chartConfigs: settings.chartConfigs,
-          plcType: settings.plcType,
-          modbusAddressMapping: settings.modbusAddressMapping,
+          ip: currentSettings.plcIp,
+          port: currentSettings.plcPort,
+          interval: currentSettings.plcPollingInterval,
+          chartConfigs: currentSettings.chartConfigs,
+          plcType: currentSettings.plcType,
+          modbusAddressMapping: currentSettings.modbusAddressMapping,
         }),
       });
 

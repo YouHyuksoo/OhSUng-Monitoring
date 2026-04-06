@@ -74,6 +74,8 @@ class HourlyEnergyService {
   private currentData: DailyEnergyData | null = null;
   private ip: string = "";
   private port: number = 502;
+  private hourlyAddress: string = "102"; // D6102: 시간별 누적
+  private dailyAddress: string = "100";  // D6100: 일별 누적
 
   /**
    * 데이터베이스 초기화
@@ -143,10 +145,14 @@ class HourlyEnergyService {
     port: number,
     plcType: string = "mc",
     addressMapping?: any,
-    pollingInterval: number = 2000 // 실시간 폴링과 동일한 기본 주기
+    pollingInterval: number = 2000,
+    hourlyAddress: string = "102",  // D6102: 시간별 누적 (매 시간 리셋)
+    dailyAddress: string = "100"    // D6100: 일별 누적 (매일 23:59 리셋)
   ): Promise<void> {
     this.ip = ip;
     this.port = port;
+    this.hourlyAddress = hourlyAddress;
+    this.dailyAddress = dailyAddress;
 
     // DB 초기화
     if (!this.db) {
@@ -175,8 +181,8 @@ class HourlyEnergyService {
         `[HourlyEnergyService] Testing connection to ${ip}:${port}...`
       );
       try {
-        // 전력 누적 데이터 주소: WORD 100 (D6100 → 100)
-        const testData = await this.connection.read(["100"]);
+        // 연결 테스트: 시간별(102) + 일별(100) 주소 읽기
+        const testData = await this.connection.read([this.hourlyAddress, this.dailyAddress]);
 
         // null 값이 포함되어 있으면 연결 실패로 판단
         const hasNull = Object.values(testData).some((val) => val === null);
@@ -416,7 +422,7 @@ class HourlyEnergyService {
       const weekAgoStr = this.formatDateString(weekAgo);
       const monthAgoStr = this.formatDateString(monthAgo);
 
-      // 1. 일별 합계 조회 (DB에 있는 데이터만)
+      // 1. 일별 합계 조회 (D6102는 매 시간 리셋되므로 시간별 합산 = 일일 사용량)
       const dailyStmt = this.db.prepare(`
         SELECT
           date,
@@ -431,7 +437,6 @@ class HourlyEnergyService {
         total: number;
       }>;
 
-      // DB 결과를 Map으로 변환 (빠른 조회용)
       const dataMap = new Map<string, number>();
       dailyRows.forEach((row) => {
         dataMap.set(row.date, row.total || 0);
@@ -673,42 +678,26 @@ class HourlyEnergyService {
         this.loadTodayData();
       }
 
-      // 전력 누적 데이터 읽기 (WORD 100) - 실제 통신 시작
       const hour = this.getCurrentHour();
       const startTime = Date.now();
 
-      console.log(
-        `[HourlyEnergyService] Polling h${hour} - ${today}, connecting to PLC...`
-      );
-
-      // 전력 누적 데이터 주소: WORD 100 (D6100 → 100)
-      const data = await this.connection.read(["100"]);
-      const value = data["100"];
+      // 두 주소 동시 읽기: 시간별(102) + 일별(100)
+      const data = await this.connection.read([this.hourlyAddress, this.dailyAddress]);
+      const hourlyValue = data[this.hourlyAddress];
+      const dailyValue = data[this.dailyAddress];
       const elapsed = Date.now() - startTime;
 
-      if (typeof value === "number") {
-        if (this.currentData) {
-          // 메모리 데이터 업데이트
-          this.currentData.hours[hour] = value;
-          this.currentData.lastUpdate = Date.now();
-
-          // DB에 해당 시간만 업데이트 (덮어쓰기)
-          this.saveHourValue(today, hour, value);
-
-          // 성공 로그
-          console.log(
-            `[HourlyEnergyService] ✅ h${hour} updated - WORD 100: ${value}Wh (${elapsed}ms)`
-          );
-        } else {
-          console.error(
-            "[HourlyEnergyService] currentData is null, cannot update"
-          );
-        }
+      if (typeof hourlyValue === "number" && this.currentData) {
+        // 매 폴링마다 현재 시간 컬럼에 UPSERT (있으면 UPDATE, 없으면 INSERT)
+        this.currentData.hours[hour] = hourlyValue;
+        this.currentData.lastUpdate = Date.now();
+        this.saveHourValue(today, hour, hourlyValue);
+        console.log(
+          `[HourlyEnergyService] ✅ h${hour} - 시간별(${this.hourlyAddress}): ${hourlyValue}, 일별(${this.dailyAddress}): ${dailyValue} (${elapsed}ms)`
+        );
       } else {
         console.warn(
-          `[HourlyEnergyService] ⚠️  Invalid value for WORD 100: ${JSON.stringify(
-            value
-          )} (${elapsed}ms)`
+          `[HourlyEnergyService] ⚠️ 시간별 주소(${this.hourlyAddress}) 유효하지 않은 값: ${JSON.stringify(hourlyValue)}`
         );
       }
     } catch (error) {

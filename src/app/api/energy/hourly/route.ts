@@ -96,7 +96,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    let { ip, port, plcType, modbusAddressMapping, interval } = body;
+    let { ip, port, plcType, modbusAddressMapping, interval, chartConfigs } = body;
+
+    // chartConfigs에서 power 타입의 주소 추출
+    const powerConfig = (chartConfigs || []).find((c: any) => c.type === "power");
+    const hourlyAddress = powerConfig?.hourlyAddress || "102";       // D6102: 시간별
+    const dailyAddress = powerConfig?.accumulationAddress || "100";  // D6100: 일별
 
     // 데모 모드일 경우 기본값 설정
     if (plcType === "demo") {
@@ -120,7 +125,9 @@ export async function POST(request: Request) {
       parseInt(port),
       plcType,
       modbusAddressMapping,
-      pollingInterval
+      pollingInterval,
+      hourlyAddress,
+      dailyAddress
     );
 
     return NextResponse.json({

@@ -49,6 +49,7 @@ export class XgtModbusPLC implements PLCConnector {
   private port: number;
   private slaveId: number;
   private addressMapping: ModbusAddressMappingConfig;
+  private dwordAddresses: Set<string> = new Set(); // 32bit DWORD로 읽을 주소 목록
 
   // 디버깅용 통계
   private lastSuccessfulRead: number = 0;
@@ -79,6 +80,14 @@ export class XgtModbusPLC implements PLCConnector {
     this.port = port;
     this.slaveId = slaveId;
     this.addressMapping = addressMapping;
+  }
+
+  /**
+   * DWORD(32bit)로 읽을 주소 목록 설정
+   */
+  setDwordAddresses(addresses: string[]): void {
+    this.dwordAddresses = new Set(addresses);
+    console.log(`[XgtModbusPLC] DWORD 주소 설정:`, [...this.dwordAddresses]);
   }
 
   /**
@@ -386,12 +395,16 @@ export class XgtModbusPLC implements PLCConnector {
       try {
         const regAddr = this.addressToRegister(addr);
 
+        // DWORD 주소는 2개 레지스터 읽기, 나머지는 1개
+        const isDword = this.dwordAddresses.has(addr);
+        const quantity = isDword ? 2 : 1;
+
         // readInputRegisters (FC04) 사용 with 타임아웃
         const data = await Promise.race([
           new Promise<any>((resolve, reject) => {
             (this.client as any).readInputRegisters(
               regAddr,
-              1,
+              quantity,
               (err: any, data: any) => {
                 if (err) {
                   reject(err);
@@ -408,7 +421,16 @@ export class XgtModbusPLC implements PLCConnector {
 
         // 값 추출
         if (data && Array.isArray(data.data) && data.data.length > 0) {
-          const value = data.data[0];
+          let value: number;
+          if (isDword && data.data.length >= 2) {
+            // DWORD: 하위 워드(low) + 상위 워드(high) * 65536 (LS XGT 리틀엔디안)
+            const low = data.data[0];
+            const high = data.data[1];
+            value = high * 65536 + low;
+            console.log(`[XgtModbusPLC] DWORD ${addr}: low=${low}, high=${high}, value=${value}`);
+          } else {
+            value = data.data[0];
+          }
           result[addr] = value;
           readSuccessCount++;
         } else {

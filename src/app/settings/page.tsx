@@ -15,7 +15,7 @@ import { Toast, ToastType } from "@/components/ui/toast";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { settings, updateSettings } = useSettings();
+  const { settings, isLoaded, updateSettings } = useSettings();
   const [localSettings, setLocalSettings] = useState(settings);
   const [isModified, setIsModified] = useState(false);
   const [toast, setToast] = useState<{
@@ -26,10 +26,12 @@ export default function SettingsPage() {
 
   const [testLog, setTestLog] = useState<string | null>(null);
 
-  // Sync local state with global settings when they change (e.g. on initial load)
+  // 설정 로드 완료 시에만 localSettings 동기화 (로드 전 기본값으로 덮어쓰기 방지)
   useEffect(() => {
-    setLocalSettings(settings);
-  }, [settings]);
+    if (isLoaded) {
+      setLocalSettings(settings);
+    }
+  }, [isLoaded]);
 
   const handleChange = (key: keyof typeof settings, value: any) => {
     setLocalSettings((prev) => {
@@ -74,7 +76,8 @@ export default function SettingsPage() {
         field === "name" ||
         field === "address" ||
         field === "setAddress" ||
-        field === "accumulationAddress"
+        field === "accumulationAddress" ||
+        field === "hourlyAddress"
       ) {
         updated[field] = value;
       }
@@ -762,7 +765,25 @@ export default function SettingsPage() {
                         </div>
                         <div>
                           <label className="text-xs font-medium text-muted-foreground">
-                            누적 측정값 주소
+                            시간별 누적 주소 (D6102 - 매 시간 리셋)
+                          </label>
+                          <input
+                            type="text"
+                            value={config.hourlyAddress || ""}
+                            onChange={(e) =>
+                              handleChartConfigChange(
+                                actualIndex,
+                                "hourlyAddress",
+                                e.target.value
+                              )
+                            }
+                            placeholder="예: 102"
+                            className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            일별 누적 주소 (D6100 - 매일 23:59 리셋)
                           </label>
                           <input
                             type="text"
@@ -774,7 +795,7 @@ export default function SettingsPage() {
                                 e.target.value
                               )
                             }
-                            placeholder="예: 50"
+                            placeholder="예: 100"
                             className="w-full h-8 text-sm bg-background border rounded px-2 focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                         </div>

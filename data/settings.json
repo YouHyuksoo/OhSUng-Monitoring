@@ -29,7 +29,9 @@
       "name": "순방향 유효전력량",
       "type": "power",
       "address": "24",
-      "accumulationAddress": "100"
+      "accumulationAddress": "100",
+      "hourlyAddress": "102",
+      "isDword": true
     },
     {
       "id": "sujul-1",

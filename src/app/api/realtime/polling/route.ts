@@ -101,6 +101,12 @@ export async function POST(request: Request) {
     // 🔤 주소별 이름 매핑 생성
     const addressNameMap = createAddressNameMap(chartConfigs || []);
 
+    // 📐 DWORD 주소 목록 추출 (isDword: true인 주소)
+    const dwordAddresses: string[] = (chartConfigs || [])
+      .filter((c: any) => c.isDword)
+      .map((c: any) => c.address)
+      .filter(Boolean);
+
     console.log(`[API/realtime/polling] 폴링 시작:`, {
       ip,
       port,
@@ -108,6 +114,7 @@ export async function POST(request: Request) {
       interval: `${pollingInterval}ms`,
       addresses: addresses.length,
       addressList: addresses,
+      dwordAddresses,
       addressNameMap,
     });
 
@@ -116,10 +123,11 @@ export async function POST(request: Request) {
       addresses,
       ip,
       parseInt(port),
-      pollingInterval, // 검증된 폴링 주기 사용
-      plcType, // plcType 전달
-      modbusAddressMapping, // 매핑 정보 전달
-      addressNameMap // 🔤 주소 이름 매핑 전달
+      pollingInterval,
+      plcType,
+      modbusAddressMapping,
+      addressNameMap,
+      dwordAddresses // 📐 DWORD 주소 목록 전달
     );
 
     return NextResponse.json({

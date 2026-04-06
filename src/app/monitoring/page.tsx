@@ -251,10 +251,11 @@ export default function MonitoringPage() {
                   <RealtimeChart
                     address={powerConfig.address}
                     title={powerConfig.name}
-                    unit="Wh"
+                    unit="kW"
                     color="#ef4444"
                     dataHours={settings.powerDataHours}
                     isPollingActive={isPollingActive}
+                    valueDivisor={1000}
                   />
                 )}
               </div>

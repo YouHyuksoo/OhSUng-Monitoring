@@ -71,6 +71,7 @@ interface RealtimeChartProps {
   dataHours?: number; // 표시할 데이터 시간 범위 (시간 기준)
   onMaximize?: () => void; // 크게보기 콜백 함수 (선택적)
   isPollingActive?: boolean; // 폴링 활성화 상태 (주기적 갱신 여부)
+  valueDivisor?: number; // 값 나누기 (예: 1000이면 raw/1000 → kW 환산)
 }
 
 export function RealtimeChart({
@@ -88,6 +89,7 @@ export function RealtimeChart({
   dataHours,
   onMaximize,
   isPollingActive = false,
+  valueDivisor = 1,
 }: RealtimeChartProps) {
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<DataPoint[]>([]);
@@ -165,8 +167,8 @@ export function RealtimeChart({
 
           return {
             time: timeStr,
-            current: point.value,
-            set: point.setAddress ?? point.value,
+            current: point.value / valueDivisor,
+            set: (point.setAddress ?? point.value) / valueDivisor,
           };
         }
       );

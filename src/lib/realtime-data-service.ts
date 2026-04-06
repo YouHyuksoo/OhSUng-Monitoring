@@ -127,7 +127,8 @@ class RealtimeDataService {
     interval: number = 2000,
     plcType: string = "mc",
     addressMapping?: any,
-    addressNameMap?: Record<string, string>
+    addressNameMap?: Record<string, string>,
+    dwordAddresses?: string[]
   ): Promise<void> {
     // DB 초기화
     if (!this.db) {
@@ -159,7 +160,11 @@ class RealtimeDataService {
     } else if (plcType === "modbus") {
       // Modbus TCP 연결
       const mapping = addressMapping || { dAddressBase: 0, modbusOffset: 0 };
-      this.connection = new XgtModbusPLC(ip, port, 1, mapping);
+      const plc = new XgtModbusPLC(ip, port, 1, mapping);
+      if (dwordAddresses && dwordAddresses.length > 0) {
+        plc.setDwordAddresses(dwordAddresses);
+      }
+      this.connection = plc;
     } else {
       // 기본값: Mitsubishi MC Protocol
       this.connection = McPLC.getInstance(ip, port);
