@@ -23,7 +23,8 @@ function extractAllAddresses(chartConfigs: any[]): string[] {
     chartConfigs.forEach((config) => {
       if (config.address) addresses.add(config.address);
       if (config.setAddress) addresses.add(config.setAddress);
-      // accumulationAddress는 별도 폴링이므로 제외
+      if (config.accumulationAddress) addresses.add(config.accumulationAddress);
+      if (config.hourlyAddress) addresses.add(config.hourlyAddress);
     });
   }
 
@@ -32,21 +33,23 @@ function extractAllAddresses(chartConfigs: any[]): string[] {
 
 /**
  * 🔤 주소별 이름 매핑 생성
- * - chartConfigs에서 각 주소의 이름을 추출
- * - 예: { "D400": "수절 1", "D401": "수절 1 (설정값)" }
  */
 function createAddressNameMap(chartConfigs: any[]): Record<string, string> {
   const nameMap: Record<string, string> = {};
 
   if (Array.isArray(chartConfigs)) {
     chartConfigs.forEach((config) => {
-      // address의 이름 추가
       if (config.address && config.name) {
         nameMap[config.address] = config.name;
       }
-      // setAddress의 이름 추가 (설정값 표시)
       if (config.setAddress && config.name) {
         nameMap[config.setAddress] = `${config.name} (설정값)`;
+      }
+      if (config.accumulationAddress && config.name) {
+        nameMap[config.accumulationAddress] = `${config.name} (일별누적)`;
+      }
+      if (config.hourlyAddress && config.name) {
+        nameMap[config.hourlyAddress] = `${config.name} (시간별누적)`;
       }
     });
   }
@@ -101,11 +104,13 @@ export async function POST(request: Request) {
     // 🔤 주소별 이름 매핑 생성
     const addressNameMap = createAddressNameMap(chartConfigs || []);
 
-    // 📐 DWORD 주소 목록 추출 (isDword: true인 주소)
-    const dwordAddresses: string[] = (chartConfigs || [])
-      .filter((c: any) => c.isDword)
-      .map((c: any) => c.address)
-      .filter(Boolean);
+    // 📐 DWORD 주소 목록 추출 (isDword: true인 config의 모든 주소)
+    const dwordAddresses: string[] = [];
+    (chartConfigs || []).filter((c: any) => c.isDword).forEach((c: any) => {
+      if (c.address) dwordAddresses.push(c.address);
+      if (c.accumulationAddress) dwordAddresses.push(c.accumulationAddress);
+      if (c.hourlyAddress) dwordAddresses.push(c.hourlyAddress);
+    });
 
     console.log(`[API/realtime/polling] 폴링 시작:`, {
       ip,

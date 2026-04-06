@@ -170,7 +170,9 @@ class HourlyEnergyService {
       this.connection = mockPlc;
     } else if (plcType === "modbus") {
       const mapping = addressMapping || { dAddressBase: 0, modbusOffset: 0 };
-      this.connection = new XgtModbusPLC(ip, port, 1, mapping);
+      const plc = new XgtModbusPLC(ip, port, 1, mapping);
+      plc.setDwordAddresses([this.hourlyAddress, this.dailyAddress]);
+      this.connection = plc;
     } else {
       this.connection = McPLC.getInstance(ip, port);
     }
