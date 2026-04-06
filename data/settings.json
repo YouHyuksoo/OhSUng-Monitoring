@@ -28,7 +28,7 @@
       "id": "power-1",
       "name": "순방향 유효전력량",
       "type": "power",
-      "address": "32",
+      "address": "24",
       "accumulationAddress": "100"
     },
     {
