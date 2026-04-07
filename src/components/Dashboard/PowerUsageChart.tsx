@@ -72,6 +72,11 @@ interface PowerUsageChartProps {
 export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProps) {
   const { theme } = useTheme();
   const { settings } = useSettings();
+
+  // power 타입 차트 설정에서 주소 추출
+  const powerConfig = settings.chartConfigs?.find((c) => c.type === "power");
+  const hourlyAddr = powerConfig?.hourlyAddress || "102";
+  const dailyAddr = powerConfig?.accumulationAddress || "100";
   const [hourlyData, setHourlyData] = useState<any[]>([]);
   const [dailyData, setDailyData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -384,6 +389,7 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
         <div className="flex-1 min-h-0 flex flex-col">
           <h3 className="text-xs font-semibold text-muted-foreground mb-1 flex-none">
             시간별 누적 에너지 (0~23시)
+            <span className="ml-1 text-blue-400 font-mono">[WORD {hourlyAddr}]</span>
           </h3>
           <div className="flex-1 min-h-0">
             <Bar data={hourlyChartData} options={chartOptions} />
@@ -394,6 +400,7 @@ export function PowerUsageChart({ isPollingActive = false }: PowerUsageChartProp
         <div className="flex-1 min-h-0 flex flex-col">
           <h3 className="text-xs font-semibold text-muted-foreground mb-1 flex-none">
             일별 누적 에너지 (30일)
+            <span className="ml-1 text-blue-400 font-mono">[WORD {dailyAddr}]</span>
           </h3>
           <div className="flex-1 min-h-0">
             <Bar data={dailyChartData} options={chartOptions} />

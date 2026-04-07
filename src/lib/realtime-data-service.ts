@@ -414,11 +414,17 @@ class RealtimeDataService {
   /**
    * 특정 주소의 최근 N시간 데이터 조회 (시간 범위 기준)
    * - name 컬럼도 함께 조회
+   * - 최대 300개로 균등 샘플링하여 차트 과부하 방지
    * @param address PLC 주소
    * @param hours 조회할 시간 (기본값: 6시간)
-   * @returns 해당 시간 범위의 모든 데이터 포인트 (시간순 정렬)
+   * @param maxPoints 최대 반환 포인트 수 (기본값: 300)
+   * @returns 해당 시간 범위의 데이터 포인트 (시간순 정렬, 최대 maxPoints개)
    */
-  getRecentDataByTime(address: string, hours: number = 6): RealtimeDataPoint[] {
+  getRecentDataByTime(
+    address: string,
+    hours: number = 6,
+    maxPoints: number = 300
+  ): RealtimeDataPoint[] {
     if (!this.db) {
       return [];
     }
@@ -434,7 +440,20 @@ class RealtimeDataService {
         ORDER BY timestamp ASC
       `);
 
-      return stmt.all(address, cutoffTime) as RealtimeDataPoint[];
+      const all = stmt.all(address, cutoffTime) as RealtimeDataPoint[];
+
+      // 데이터가 maxPoints 이하면 그대로 반환
+      if (all.length <= maxPoints) {
+        return all;
+      }
+
+      // 균등 샘플링: 전체 데이터에서 maxPoints개만 추출
+      const step = (all.length - 1) / (maxPoints - 1);
+      const sampled: RealtimeDataPoint[] = [];
+      for (let i = 0; i < maxPoints; i++) {
+        sampled.push(all[Math.round(i * step)]);
+      }
+      return sampled;
     } catch (error) {
       console.error(
         "[RealtimeDataService] Failed to get recent data by time:",

@@ -298,8 +298,25 @@ class HourlyEnergyService {
 
   /**
    * 현재 데이터 조회 (오늘)
+   * - 항상 DB에서 직접 읽어 이전 시간 데이터가 유실되지 않도록 함
+   * - 메모리 캐시만 반환하면 서버 재시작 시 이전 시간들이 0으로 보이는 문제 발생
    */
   getCurrentData(): DailyEnergyData | null {
+    const today = this.getTodayString();
+
+    // 항상 DB에서 최신 데이터 읽기 (이전 시간 데이터 보존)
+    const dbData = this.getDayData(today);
+
+    if (dbData) {
+      // 메모리 캐시의 현재 시간 값이 DB보다 최신일 수 있으므로 덮어씌우기
+      if (this.currentData && this.currentData.date === today) {
+        const hour = this.getCurrentHour();
+        dbData.hours[hour] = this.currentData.hours[hour];
+      }
+      return dbData;
+    }
+
+    // DB에 오늘 데이터가 없으면 메모리 캐시 반환 (폴링이 아직 저장 전인 경우)
     if (!this.currentData) {
       this.loadTodayData();
     }
