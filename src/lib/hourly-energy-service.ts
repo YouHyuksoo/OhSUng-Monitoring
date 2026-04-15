@@ -557,7 +557,9 @@ class HourlyEnergyService {
   }
 
   /**
-   * 특정 시간 컬럼만 업데이트 (UPSERT)
+   * 특정 시간 컬럼만 업데이트 (UPSERT with MAX)
+   * - D6102는 한 시간 동안 단조 증가하는 누적값 → MAX()로 하락 방지
+   * - 시계 오차로 PLC가 이미 리셋(0)된 값을 이전 시간에 쓰는 경쟁 조건 차단
    */
   private saveHourValue(date: string, hour: number, value: number): void {
     if (!this.db) return;
@@ -566,17 +568,19 @@ class HourlyEnergyService {
       const timestamp = Date.now();
       const hourCol = `h${hour}`;
 
-      // UPSERT: 행이 없으면 INSERT, 있으면 해당 컬럼만 UPDATE
+      // UPSERT: 행이 없으면 INSERT, 있으면 MAX(기존값, 신규값)로 UPDATE
       const stmt = this.db.prepare(`
         INSERT INTO daily_energy (date, ${hourCol}, last_update)
         VALUES (?, ?, ?)
-        ON CONFLICT(date) DO UPDATE SET ${hourCol} = ?, last_update = ?
+        ON CONFLICT(date) DO UPDATE SET
+          ${hourCol} = MAX(${hourCol}, excluded.${hourCol}),
+          last_update = ?
       `);
 
-      stmt.run(date, value, timestamp, value, timestamp);
+      stmt.run(date, value, timestamp, timestamp);
 
       console.log(
-        `[HourlyEnergyService] Saved: ${date} ${hour}:00 = ${value}Wh`
+        `[HourlyEnergyService] Saved: ${date} ${hour}:00 <= ${value}Wh (MAX-guard)`
       );
     } catch (error) {
       console.error("[HourlyEnergyService] Failed to save hour value:", error);
@@ -707,8 +711,16 @@ class HourlyEnergyService {
       const elapsed = Date.now() - startTime;
 
       if (typeof hourlyValue === "number" && this.currentData) {
-        // 매 폴링마다 현재 시간 컬럼에 UPSERT (있으면 UPDATE, 없으면 INSERT)
-        this.currentData.hours[hour] = hourlyValue;
+        // 시계 오차 방어: PLC가 이미 리셋돼 0을 반환했는데 서버 시계는 아직 이전 시간이면
+        // 이전 시간의 누적값이 0으로 덮어써짐. 메모리/DB 모두 MAX로 보호.
+        const prev = this.currentData.hours[hour] ?? 0;
+        if (hourlyValue < prev) {
+          console.warn(
+            `[HourlyEnergyService] ⚠️ 시간 경계 하락 감지 h${hour}: ${prev} → ${hourlyValue} (PLC 리셋 추정, 기존값 유지)`
+          );
+        }
+        const guarded = Math.max(prev, hourlyValue);
+        this.currentData.hours[hour] = guarded;
         this.currentData.lastUpdate = Date.now();
         this.saveHourValue(today, hour, hourlyValue);
         console.log(
