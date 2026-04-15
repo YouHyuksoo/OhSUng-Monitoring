@@ -423,7 +423,7 @@ class RealtimeDataService {
   getRecentDataByTime(
     address: string,
     hours: number = 6,
-    maxPoints: number = 300
+    maxPoints: number = 50
   ): RealtimeDataPoint[] {
     if (!this.db) {
       return [];

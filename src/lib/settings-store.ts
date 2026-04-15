@@ -79,7 +79,7 @@ const DEFAULT_SETTINGS: Settings = {
   logRetention: 30, // 로그 보관 일수 (기본값: 30일)
   startFullScreen: true,
   tempDataLimit: 6, // 온도 차트 표시 개수
-  powerDataHours: 6, // 실시간 전력량 표시 시간 (6시간)
+  powerDataHours: 1, // 실시간 전력량 표시 시간 (1시간)
   tempChartYMin: 0, // 온도 차트 Y축 최소값
   tempChartYMax: 100, // 온도 차트 Y축 최대값
   useMemoryPolling: false, // 데이터 소스: false = DB (기본값), true = 메모리

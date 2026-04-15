@@ -253,7 +253,9 @@ export default function MonitoringPage() {
                     title={powerConfig.name}
                     unit="kW"
                     color="#ef4444"
-                    dataHours={settings.powerDataHours}
+                    {...(settings.dataRetention === 6
+                      ? { dataHours: settings.powerDataHours }
+                      : { dataLimit: settings.dataRetention })}
                     isPollingActive={isPollingActive}
                     valueDivisor={1000}
                   />
